@@ -43,3 +43,4 @@ def delete_event(event_id: int, db: Session = Depends(get_db)):
         service.delete_event(db, event_id)
     except service.EventNotFoundError:
         raise HTTPException(status_code=404, detail="Evento não encontrado")
+        
