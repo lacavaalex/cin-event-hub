@@ -37,3 +37,4 @@ export function toFieldErrors(detail) {
   if (!Array.isArray(detail)) return {};
   return Object.fromEntries(detail.map((e) => [e.loc.at(-1), e.msg]));
 }
+  
