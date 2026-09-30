@@ -52,3 +52,4 @@ def delete_event(db: Session, event_id: int) -> None:
     """Remove o evento do sistema (US 2.3)."""
     event = get_event(db, event_id)
     repository.delete(db, event)
+    
