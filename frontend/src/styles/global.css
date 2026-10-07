@@ -1,0 +1,9 @@
+:root {
+  --red: #c8102e;
+  --red-dark: #9e0b23;
+  --white: #fff;
+  --gray: #f4f4f5;
+  --border: #d4d4d8;
+}
+* { box-sizing: border-box; }
+body { margin: 0; font-family: system-ui, sans-serif; background: var(--gray); color: #1f1f1f; }

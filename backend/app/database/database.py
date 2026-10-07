@@ -1,14 +1,21 @@
-"""Conexão com o PostgreSQL (SQLAlchemy 2.x + driver psycopg 3)."""
-import os
+"""Conexão com o banco de dados (SQLAlchemy 2.x).
+
+Suporta SQLite (dev local) e PostgreSQL (produção).
+Para trocar, basta alterar DATABASE_URL no .env:
+    postgresql+psycopg://usuario:senha@localhost:5432/eventos
+"""
+
 from collections.abc import Iterator
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-# Ex.: postgresql+psycopg://usuario:senha@localhost:5432/eventos
-DATABASE_URL = os.environ["DATABASE_URL"]
+from app.core.config import DATABASE_URL
 
-engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+# SQLite precisa de check_same_thread=False para funcionar com FastAPI
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+
+engine = create_engine(DATABASE_URL, pool_pre_ping=True, connect_args=connect_args)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 
