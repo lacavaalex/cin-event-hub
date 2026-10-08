@@ -1,11 +1,21 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 from app.core.Security import get_current_admin_id
 from app.database.database import get_db
-from app.schemas.events.schemas import EventCreate, EventRead, EventUpdate
+from app.schemas.events.schemas import (
+    EventCreate,
+    EventRead,
+    EventUpdate,
+    FavoriteStatus,
+)
 from app.services.events import service
 
 router = APIRouter(prefix="/events", tags=["events"])
+
+
+def get_current_user_id(x_user_id: int = Header(..., alias="X-User-Id")) -> int:
+    """Obtém o ID do aluno pelo header enquanto não há autenticação de aluno."""
+    return x_user_id
 
 
 @router.post(
@@ -29,6 +39,29 @@ def create(payload: EventCreate, db: Session = Depends(get_db)):
 def list_all(db: Session = Depends(get_db)):
     """Lista todos os eventos ativos (US 3.1). Rota pública."""
     return service.list_events(db)
+
+
+@router.post("/{event_id}/favorite", response_model=FavoriteStatus)
+def favorite_event(
+    event_id: int,
+    db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user_id),
+):
+    """Favorita um evento de forma idempotente."""
+    try:
+        return service.favorite_event(db, user_id, event_id)
+    except service.EventNotFoundError:
+        raise HTTPException(status_code=404, detail="Evento não encontrado")
+
+
+@router.delete("/{event_id}/favorite", response_model=FavoriteStatus)
+def unfavorite_event(
+    event_id: int,
+    db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user_id),
+):
+    """Remove um favorito de forma idempotente."""
+    return service.unfavorite_event(db, user_id, event_id)
 
 
 @router.get("/{event_id}", response_model=EventRead)
