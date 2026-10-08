@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.models.events.models import Event
 from app.repositories.events import repository
-from app.schemas.events.schemas import EventUpdate
+from app.schemas.events.schemas import EventCreate, EventUpdate, FavoriteStatus
 
 # "Hoje" precisa ser o de Recife: o servidor pode rodar em UTC e, à noite,
 # já estar no dia seguinte.
@@ -18,6 +18,49 @@ class EventNotFoundError(Exception):
 
 class PastEventDateError(Exception):
     """Tentativa de mover o evento para uma data que já passou."""
+
+
+def create_event(db: Session, payload: EventCreate) -> Event:
+    today = dt.datetime.now(LOCAL_TZ).date()
+    if payload.date < today:
+        raise PastEventDateError(payload.date)
+
+    event = Event(
+        title=payload.title,
+        description=payload.description,
+        date=payload.date,
+        time=payload.time,
+        location=payload.location,
+        event_type=payload.event_type.value,
+        registration_link=str(payload.registration_link),
+        status="active",
+        origin="manual",
+    )
+    return repository.create(db, event)
+
+
+def list_events(db: Session) -> list[Event]:
+    return repository.list_active(db)
+
+
+def favorite_event(db: Session, user_id: int, event_id: int) -> FavoriteStatus:
+    """Favorita um evento para o usuário de forma idempotente."""
+    if repository.get_by_id(db, event_id) is None:
+        raise EventNotFoundError(event_id)
+
+    if repository.get_favorite(db, user_id, event_id) is None:
+        repository.create_favorite(db, user_id, event_id)
+
+    return FavoriteStatus(event_id=event_id, is_favorited=True)
+
+
+def unfavorite_event(db: Session, user_id: int, event_id: int) -> FavoriteStatus:
+    """Remove o favorito do usuário de forma idempotente."""
+    existing = repository.get_favorite(db, user_id, event_id)
+    if existing is not None:
+        repository.delete_favorite(db, existing)
+
+    return FavoriteStatus(event_id=event_id, is_favorited=False)
 
 
 def get_event(db: Session, event_id: int) -> Event:
