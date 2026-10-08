@@ -1,7 +1,6 @@
 """Schemas Pydantic: o "contrato" da API para eventos."""
 import datetime as dt
 from enum import StrEnum
-
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
 
@@ -28,6 +27,10 @@ class EventUpdate(BaseModel):
     registration_link: HttpUrl
 
 
+class EventCreate(EventUpdate):
+    """Corpo do POST /events: todos os campos necessários para criar o evento."""
+
+
 class EventRead(BaseModel):
     """Resposta da API. `from_attributes` permite montar a partir do model ORM."""
 
@@ -43,3 +46,11 @@ class EventRead(BaseModel):
     registration_link: str
     status: str
     origin: str
+
+class FavoriteStatus(BaseModel):
+    """Estado atual do favorito de um usuário para um evento."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    event_id: int
+    is_favorited: bool
