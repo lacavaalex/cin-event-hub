@@ -18,6 +18,7 @@ from app.core.security import hash_password
 from app.database.database import Base, SessionLocal, engine
 from app.models.admin import Admin  # noqa: F401 — registra o model no metadata
 from app.models.event import Event  # noqa: F401 — registra o model no metadata
+from app.models.events.models import Favorite  # noqa: F401 — registra o model no metadata
 from app.repositories import admin_repository
 
 
