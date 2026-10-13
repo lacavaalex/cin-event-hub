@@ -20,6 +20,7 @@ from app.database.database import Base, SessionLocal, engine
 from app.models.admin import Admin  # noqa: F401 — registra o model no metadata
 from app.models.event import Event  # noqa: F401 — registra o model no metadata
 from app.models.extraction_log import ExtractionLog  # noqa: F401 — registra o model no metadata
+from app.models.events.models import Favorite  # noqa: F401 — registra o model no metadata
 from app.repositories import admin_repository
 from app.services.extracao_email.scheduler import shutdown_scheduler, start_scheduler
 

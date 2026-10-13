@@ -1,6 +1,6 @@
 """Conexão com o banco de dados (SQLAlchemy 2.x).
 
-Usa SQLite por padrão enquanto o PostgreSQL não está configurado.
+Suporta SQLite (dev local) e PostgreSQL (produção).
 Para trocar, basta alterar DATABASE_URL no .env:
     postgresql+psycopg://usuario:senha@localhost:5432/eventos
 """
