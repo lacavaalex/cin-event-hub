@@ -13,12 +13,15 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.auth.router import router as auth_router
 from app.api.eventos.router import router as events_router
+from app.api.extracao.router import router as extraction_router
 from app.core.config import ADMIN_EMAIL, ADMIN_PASSWORD
 from app.core.security import hash_password
 from app.database.database import Base, SessionLocal, engine
 from app.models.admin import Admin  # noqa: F401 — registra o model no metadata
 from app.models.event import Event  # noqa: F401 — registra o model no metadata
+from app.models.extraction_log import ExtractionLog  # noqa: F401 — registra o model no metadata
 from app.repositories import admin_repository
+from app.services.extracao_email.scheduler import shutdown_scheduler, start_scheduler
 
 
 def _seed_admin() -> None:
@@ -41,7 +44,9 @@ async def lifespan(_app: FastAPI):
     """Lifecycle hook: cria tabelas e seed antes de aceitar requisições."""
     Base.metadata.create_all(bind=engine)
     _seed_admin()
+    start_scheduler()
     yield
+    shutdown_scheduler()
 
 
 app = FastAPI(
@@ -64,6 +69,7 @@ app.add_middleware(
 # ── Routers ─────────────────────────────────────────────────────────
 app.include_router(auth_router)
 app.include_router(events_router)
+app.include_router(extraction_router)
 
 
 @app.get("/", tags=["health"])
