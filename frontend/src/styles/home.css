@@ -93,3 +93,7 @@
 @media (prefers-reduced-motion: reduce) {
   .event-card { animation: none; transition: none; }
 }
+
+.event-card { position: relative; }
+.event-title a { color: inherit; text-decoration: none; }
+.event-title a::after { content: ''; position: absolute; inset: 0; }

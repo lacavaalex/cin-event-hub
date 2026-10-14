@@ -1,5 +1,7 @@
 const MONTHS = ['JAN', 'FEV', 'MAR', 'ABR', 'MAI', 'JUN', 'JUL', 'AGO', 'SET', 'OUT', 'NOV', 'DEZ'];
 const KNOWN_TYPES = ['palestra', 'workshop', 'hackathon', 'minicurso'];
+import { Link } from 'react-router-dom';
+
 
 function typeSlug(type) {
   const slug = type.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
@@ -18,6 +20,7 @@ export default function EventCard({ event, index = 0 }) {
       </time>
       <div className="event-body">
         <span className="event-type">{event.type}</span>
+            <Link to={`/eventos/${event.id}`}>{event.title}</Link>
         <h3 className="event-title">{event.title}</h3>
         <p className="event-meta">{event.time.slice(0, 5)}</p>
         <p className="event-meta">{event.location}</p>
