@@ -68,3 +68,17 @@ export function filterByKeyword(events, term) {
     (e) => normalize(e.title).includes(q) || normalize(e.description).includes(q)
   );
 }
+
+// Eventos extras só para testar a paginação (US 3.6): 6 originais + 44 = 50
+MOCK_EVENTS.push(
+  ...Array.from({ length: 44 }, (_, i) => ({
+    id: 100 + i,
+    title: `Encontro de estudos ${String(i + 1).padStart(2, '0')}`,
+    description: 'Evento gerado para testar a paginação.',
+    date: `2027-01-${String(1 + (i % 28)).padStart(2, '0')}`,
+    time: `${String(8 + (i % 10)).padStart(2, '0')}:00`,
+    location: 'Sala A101',
+    type: ['Workshop', 'Minicurso', 'Hackathon'][i % 3],
+    registration_link: 'https://example.com/encontro',
+  }))
+);
