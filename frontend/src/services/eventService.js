@@ -51,3 +51,20 @@ export async function getEventById(id) {
   if (!res.ok) throw new Error('Não foi possível carregar o evento.');
   return res.json();
 }
+
+function normalize(text) {
+  return String(text ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // ignora acentos
+    .toLowerCase()
+    .trim();
+}
+
+// Busca o termo (como trecho contínuo) no título OU na descrição
+export function filterByKeyword(events, term) {
+  const q = normalize(term);
+  if (!q) return events;
+  return events.filter(
+    (e) => normalize(e.title).includes(q) || normalize(e.description).includes(q)
+  );
+}
