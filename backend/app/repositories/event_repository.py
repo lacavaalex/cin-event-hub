@@ -4,6 +4,8 @@ Mantém compatibilidade com o repositório da branch develop_alb (Albert),
 adicionando as operações de criação (US 2.1) e listagem (US 3.1).
 """
 
+import datetime as dt
+
 from sqlalchemy.orm import Session
 
 from app.models.event import Event
@@ -25,3 +27,15 @@ def get_all(db: Session) -> list[Event]:
 def get_by_id(db: Session, event_id: int) -> Event | None:
     """Busca um evento pelo ID."""
     return db.get(Event, event_id)
+
+
+def get_expired_events(db: Session, reference_date: dt.date) -> list[Event]:
+    """Retorna todos os eventos com data anterior à data de referência (US 5.1)."""
+    return db.query(Event).filter(Event.date < reference_date).all()
+
+
+def delete(db: Session, event: Event) -> None:
+    """Remove o evento do banco (US 2.3 / US 5.1)."""
+    db.delete(event)
+    db.commit()
+

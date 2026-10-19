@@ -15,6 +15,10 @@ def list_active(db: Session) -> list[Event]:
     return db.query(Event).filter(Event.status == "active").all()
 
 
+def get_expired_events(db: Session, reference_date) -> list[Event]:
+    return db.query(Event).filter(Event.date < reference_date).all()
+
+
 def get_by_id(db: Session, event_id: int) -> Event | None:
     return db.get(Event, event_id)
 
