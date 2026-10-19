@@ -1,4 +1,4 @@
-"""Orquestração da extração automática de e-mails (US 4.1 + US 4.2).
+"""Orquestração da extração automática de e-mails (US 4.1 + US 4.2 + US 4.4).
 
 Fluxo por e-mail ainda não processado (idempotência por ``message_id``):
 
@@ -6,14 +6,20 @@ Fluxo por e-mail ainda não processado (idempotência por ``message_id``):
    - cria ``Event`` (``origin="email"``, ``status="active"``) + log "processado".
 2. Se faltarem dados, cai no **fallback de IA** (US 4.2), quando o Gemini está
    configurado:
-   - IA identifica evento e extrai os campos → ``Event`` com ``status="draft"``
-     ("rascunho" — a publicação autónoma com validação é a US 4.4) + log "processado_ia";
+   - IA identifica evento e extrai os campos → **validação autónoma (US 4.4 /
+     IESI-75)**: estrutura íntegra e data não passada → ``Event`` publicado
+     (``status="active"``) + log "processado_ia"; caso contrário o evento é
+     **silenciosamente descartado** + log "extracao_incompleta";
    - IA conclui que **não é evento** → log "ignorado";
-   - IA confirma evento, mas faltam campos → e-mail "nao_processado" + alerta
-     ao administrador (log consultável em ``GET /extraction/alerts``).
+   - IA confirma evento, mas faltam campos obrigatórios → descarte + log
+     "extracao_incompleta" (contado em ``unprocessed``; alerta em
+     ``GET /extraction/alerts``).
 3. Se a IA **não** está configurada, mantém o comportamento da US 4.1 (sem dados
    obrigatórios → "ignorado").
 4. Falhas inesperadas (incl. queda da API do Gemini) → log "erro".
+
+Os registos "extracao_incompleta" alimentam o dashboard de monitorização
+(US 4.3) — o consumidor do dashboard fica fora deste escopo.
 """
 
 from __future__ import annotations
@@ -37,11 +43,13 @@ from app.services.ia_gemini.gemini_client import (
     NotAnEventError,
     UnprocessableEventError,
 )
+from app.services.validacao import ValidationDecision, evaluate
 
 STATUS_PROCESSADO = "processado"
 STATUS_PROCESSADO_IA = "processado_ia"
 STATUS_IGNORADO = "ignorado"
-STATUS_NAO_PROCESSADO = "nao_processado"
+STATUS_NAO_PROCESSADO = "nao_processado"   # legado (pré-US 4.4) — ainda listado nos alertas
+STATUS_EXTRACAO_INCOMPLETA = "extracao_incompleta"  # US 4.4: validação recusou
 STATUS_ERRO = "erro"
 
 
@@ -51,9 +59,10 @@ class ExtractionSummary:
 
     fetched: int = 0
     processed: int = 0      # extraídos pelo parser estruturado (US 4.1)
-    processed_ia: int = 0   # extraídos pelo Gemini (US 4.2)
+    processed_ia: int = 0   # extraídos pelo Gemini e publicados (US 4.2 + 4.4)
     ignored: int = 0
-    unprocessed: int = 0    # eventos que a IA não conseguiu completar (alerta)
+    unprocessed: int = 0    # IA não extraiu campos obrigatórios (alerta)
+    discarded: int = 0      # validação autónoma descartou o evento (US 4.4)
     errors: int = 0
     duplicates: int = 0
     message: str = ""
@@ -134,11 +143,13 @@ def _fallback_ia(
         summary.ignored += 1
         return
     except UnprocessableEventError as exc:
+        # US 4.4: extração incompleta → descarte silencioso + registo para o
+        # dashboard (contado como "não processado" para o alerta da US 4.2).
         _log(
             db,
             raw,
-            STATUS_NAO_PROCESSADO,
-            error_message=f"IA não extraiu campos obrigatórios: {', '.join(exc.missing)}",
+            STATUS_EXTRACAO_INCOMPLETA,
+            error_message=_short(f"IA não extraiu campos obrigatórios: {', '.join(exc.missing)}"),
         )
         summary.unprocessed += 1
         return
@@ -147,10 +158,23 @@ def _fallback_ia(
         summary.errors += 1
         return
 
-    # Evento extraído por IA nasce como rascunho (R2): a publicação autónoma
-    # com validação estrutural/temporal só vou realizar na implementação da US 4.4.
-    _persist(db, raw, parsed, summary, status="draft", log_status=STATUS_PROCESSADO_IA)
-    summary.processed_ia += 1
+    # US 4.4 / IESI-75: validação autónoma (estrutura + data futura) antes de
+    # persistir — válida publica como "active", inválida é descartada com registo.
+    payload = asdict(parsed)
+    result = evaluate(payload)
+    if result.decision is ValidationDecision.PUBLICAR:
+        _persist(db, raw, parsed, summary, status="active", log_status=STATUS_PROCESSADO_IA)
+        summary.processed_ia += 1
+        return
+
+    _log(
+        db,
+        raw,
+        STATUS_EXTRACAO_INCOMPLETA,
+        extracted_data=json.dumps(payload, default=str, ensure_ascii=False),
+        error_message=_short(f"evento descartado pela validação: {', '.join(result.reason_texts)}"),
+    )
+    summary.discarded += 1
 
 
 def _persist(
