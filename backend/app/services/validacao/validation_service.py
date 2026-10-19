@@ -1,17 +1,17 @@
-"""Validação autónoma da integridade estrutural dos dados extraídos pela IA.
+"""Validação autónoma da integridade estrutural e temporal dos dados da IA.
 
-Implementa a **US 4.4** do backlog v3 (Validação Autónoma) — etapa **IESI-73**:
-uma camada de serviço que *inspeciona o JSON devolvido pelo Gemini* antes de
-qualquer persistência, respondendo se a estrutura do evento está íntegra.
+Implementa a **US 4.4** do backlog v3 (Validação Autónoma) em duas etapas:
 
-Regras estruturais (Gherkin da US 4.4: "os campos obrigatórios não estão vazios"):
+- **IESI-73** — camada de serviço que *inspeciona o JSON devolvido pelo Gemini*
+  antes de qualquer persistência (estrutura íntegra: ``title`` e ``date``
+  presentes, não vazios e data conversível);
+- **IESI-74** — regra de negócio: se **título ou data estiverem vazios**, ou se
+  **a data extraída for no passado**, o evento é **descartado**; caso contrário
+  a validação é ``"valido"`` e a decisão é ``"publicar"``.
 
-- ``title`` presente e não vazio;
-- ``date`` presente e conversível para :class:`datetime.date`.
-
-A regra temporal ("a data é futura") e a decisão de publicar/descartar são a
-etapa seguinte da US 4.4 (IESI-74). A camada é pura: não toca em banco nem em
-rede — o pipeline de extração é quem persiste (IESI-75).
+Comparação de data usa o fuso de Recife (mesmo critério da US 2.1). A camada é
+pura: não toca em banco nem em rede — o pipeline de extração é quem persiste
+decisão a decisão (IESI-75).
 """
 
 from __future__ import annotations
@@ -20,6 +20,11 @@ import datetime as dt
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, Mapping
+from zoneinfo import ZoneInfo
+
+# Fuso horário local — o servidor pode rodar em UTC, mas a regra de data usa
+# o horário de Recife (mesmo critério de event_service.create_event, US 2.1).
+LOCAL_TZ = ZoneInfo("America/Recife")
 
 # Campos cuja integridade a US 4.4 exige antes de publicar um evento extraído.
 REQUIRED_FIELDS = ("title", "date")
@@ -29,11 +34,19 @@ _DATE_FORMATS = ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d.%m.%Y")
 
 
 class ValidationReason(StrEnum):
-    """Motivo de rejeição da validação estrutural (IESI-73)."""
+    """Motivos de rejeição da validação (IESI-73 + IESI-74)."""
 
     TITULO_VAZIO = "titulo_vazio"
     DATA_VAZIA = "data_vazia"
     DATA_INVALIDA = "data_invalida"
+    DATA_NO_PASSADO = "data_no_passado"
+
+
+class ValidationDecision(StrEnum):
+    """Decisão resultante da validação autónoma (IESI-74)."""
+
+    PUBLICAR = "publicar"
+    DESCARTAR = "descartar"
 
 
 @dataclass(frozen=True)
@@ -52,9 +65,33 @@ class ValidationResult:
         return "valido" if self.valid else "invalido"
 
     @property
+    def decision(self) -> ValidationDecision:
+        """``"publicar"`` se íntegro e com data não passada; senão ``"descartar"``."""
+        return ValidationDecision.PUBLICAR if self.valid else ValidationDecision.DESCARTAR
+
+    @property
     def reason_texts(self) -> tuple[str, ...]:
         """Motivos como strings (prontas para ``error_message`` do log)."""
         return tuple(str(reason) for reason in self.reasons)
+
+
+def evaluate(
+    payload: Mapping[str, Any], *, today: dt.date | None = None
+) -> ValidationResult:
+    """Validação completa da US 4.4: estrutura (IESI-73) + regra temporal (IESI-74).
+
+    Regra da IESI-74: título ou data vazios, **ou** data extraída anterior à
+    data atual ⇒ descarte. ``today`` permite fixar a data de referência em
+    testes; por padrão usa o dia corrente em Recife.
+    """
+    result = inspect_payload(payload)
+    if not result.valid:
+        return result
+
+    reference = today or dt.datetime.now(LOCAL_TZ).date()
+    if coerce_date(payload.get("date")) < reference:
+        return ValidationResult((ValidationReason.DATA_NO_PASSADO,))
+    return result
 
 
 def inspect_payload(payload: Mapping[str, Any]) -> ValidationResult:

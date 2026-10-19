@@ -1,16 +1,20 @@
-"""Testes da camada de inspeção estrutural (US 4.4 / IESI-73).
+"""Testes da validação autónoma (US 4.4 — IESI-73 e IESI-74).
 
-Cobrem o critério "os campos obrigatórios não estão vazios" do Gherkin da
-US 4.4 sobre o JSON devolvido pelo Gemini — sem banco e sem rede.
+- IESI-73: inspeção estrutural do JSON devolvido pelo Gemini ("campos
+  obrigatórios não estão vazios") — sem banco e sem rede.
+- IESI-74: regra "título/data vazios ou data no passado ⇒ descartar"
+  ("a data é futura" ⇒ publicar).
 """
 
 import datetime as dt
 
 from app.services.validacao import (
     REQUIRED_FIELDS,
+    ValidationDecision,
     ValidationResult,
     ValidationReason,
     coerce_date,
+    evaluate,
     inspect_payload,
 )
 
@@ -113,3 +117,68 @@ def test_coerce_date():
     assert coerce_date("") is None
     assert coerce_date("amanhã") is None
     assert coerce_date(None) is None
+
+
+# ── US 4.4 / IESI-74: regra temporal e decisão ────────────────────────
+HOJE = dt.date(2026, 10, 19)
+
+
+def test_data_no_passado_e_descartada():
+    payload = {**PAYLOAD_COMPLETO, "date": "2025-11-25"}
+
+    result = evaluate(payload, today=HOJE)
+
+    assert result.valid is False
+    assert result.status == "invalido"
+    assert result.reasons == (ValidationReason.DATA_NO_PASSADO,)
+    assert result.decision == ValidationDecision.DESCARTAR
+
+
+def test_data_de_hoje_e_publicada():
+    payload = {**PAYLOAD_COMPLETO, "date": "19/10/2026"}
+
+    assert evaluate(payload, today=HOJE).decision == ValidationDecision.PUBLICAR
+
+
+def test_data_futura_e_publicada():
+    result = evaluate(PAYLOAD_COMPLETO, today=HOJE)
+
+    assert result.valid is True
+    assert result.status == "valido"
+    assert result.decision == ValidationDecision.PUBLICAR
+
+
+def test_titulo_ou_data_vazos_ja_sao_descartados():
+    sem_titulo = evaluate({**PAYLOAD_COMPLETO, "title": " "}, today=HOJE)
+    sem_data = evaluate({**PAYLOAD_COMPLETO, "date": None}, today=HOJE)
+
+    assert sem_titulo.decision == ValidationDecision.DESCARTAR
+    assert sem_data.decision == ValidationDecision.DESCARTAR
+
+
+def test_estrutura_invalida_nao_acumula_motivo_temporal():
+    payload = {"title": "Sem data", "date": None}
+
+    result = evaluate(payload, today=HOJE)
+
+    assert result.reasons == (ValidationReason.DATA_VAZIA,)
+    assert result.decision == ValidationDecision.DESCARTAR
+
+
+def test_data_no_passado_sobre_estrutura_valida_e_o_unico_motivo():
+    payload = {**PAYLOAD_COMPLETO, "date": dt.date(2020, 1, 1)}
+
+    result = evaluate(payload, today=HOJE)
+
+    assert result.reasons == (ValidationReason.DATA_NO_PASSADO,)
+    assert result.reason_texts == ("data_no_passado",)
+
+
+def test_padrao_usa_data_atual_de_recife():
+    payload = {**PAYLOAD_COMPLETO, "date": "2099-01-01"}
+
+    assert evaluate(payload).valid is True
+
+
+def test_decisao_publicar_quando_sem_motivos():
+    assert ValidationResult().decision == ValidationDecision.PUBLICAR
