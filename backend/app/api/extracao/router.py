@@ -1,8 +1,12 @@
-"""Router de extração de e-mails — POST /extraction/run.
+"""Router de extração de e-mails — US 4.1 (extração) + US 4.2 (IA/alertas).
 
-O endpoint permite disparar manualmente um ciclo de extração (útil para a
-primeira autorização do OAuth e para validação do critério de aceite). A
-varredura periódica é feita pelo job agendado (scheduler.py).
+`POST /extraction/run` dispara manualmente um ciclo (útil para a primeira
+autorização do OAuth e para validar os critérios de aceite). A varredura
+periódica é feita pelo job agendado (``scheduler.py``).
+
+`GET /extraction/alerts` expõe os e-mails que a IA marcou como "não processados"
+(critério de aceite da US 4.2: alerta ao administrador). É um recorte enxuto de
+alertas — o dashboard completo de monitoramento é a US 4.3.
 """
 
 from dataclasses import asdict
@@ -12,8 +16,12 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_admin
 from app.database import get_db
-from app.schemas.extracao import ExtractionRunResponse
-from app.services.extracao_email.extraction_service import run_extraction
+from app.repositories import extraction_log_repository
+from app.schemas.extracao import ExtractionAlertRead, ExtractionRunResponse
+from app.services.extracao_email.extraction_service import (
+    STATUS_NAO_PROCESSADO,
+    run_extraction,
+)
 
 router = APIRouter(prefix="/extraction", tags=["extraction"])
 
@@ -26,9 +34,23 @@ router = APIRouter(prefix="/extraction", tags=["extraction"])
 def run(db: Session = Depends(get_db)):
     """Executa um ciclo de extração de e-mails e insere eventos.
 
-    Retorna quantos e-mails foram processados, ignorados (sem dados
-    obrigatórios) e com erro — espelhando os logs da tabela ``extraction_logs``.
+    Retorna quantos e-mails foram extraídos pelo parser (``processed``), pela IA
+    (``processed_ia``), ignorados, não processados (alertas) e com erro —
+    espelhando os logs da tabela ``extraction_logs``.
     Exige token JWT de administrador.
     """
     summary = run_extraction(db)
     return ExtractionRunResponse(**asdict(summary))
+
+
+@router.get(
+    "/alerts",
+    response_model=list[ExtractionAlertRead],
+    dependencies=[Depends(get_current_admin)],
+)
+def list_alerts(limit: int = 50, db: Session = Depends(get_db)):
+    """Lista os e-mails "não processados" pela IA para curadoria do administrador.
+
+    Critério de aceite da US 4.2 (alerta ao administrador). Exige token JWT.
+    """
+    return extraction_log_repository.list_by_status(db, STATUS_NAO_PROCESSADO, limit)

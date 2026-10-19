@@ -20,3 +20,15 @@ def get_by_message_id(db: Session, gmail_message_id: str) -> ExtractionLog | Non
         .filter(ExtractionLog.gmail_message_id == gmail_message_id)
         .first()
     )
+
+
+def list_by_status(
+    db: Session, status: str, limit: int = 50
+) -> list[ExtractionLog]:
+    return (
+        db.query(ExtractionLog)
+        .filter(ExtractionLog.status == status)
+        .order_by(ExtractionLog.created_at.desc(), ExtractionLog.id.desc())
+        .limit(limit)
+        .all()
+    )
