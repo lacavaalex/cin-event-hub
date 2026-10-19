@@ -21,7 +21,12 @@ from app.models.admin import Admin  # noqa: F401 — registra o model no metadat
 from app.models.event import Event  # noqa: F401 — registra o model no metadata
 from app.models.extraction_log import ExtractionLog  # noqa: F401 — registra o model no metadata
 from app.models.events.models import Favorite  # noqa: F401 — registra o model no metadata
+from app.models.user import User  # noqa: F401 — registra o model no metadata
 from app.repositories import admin_repository
+from app.services.events.cleanup_scheduler import (
+    shutdown_cleanup_scheduler,
+    start_cleanup_scheduler,
+)
 from app.services.extracao_email.scheduler import shutdown_scheduler, start_scheduler
 
 
@@ -46,8 +51,11 @@ async def lifespan(_app: FastAPI):
     Base.metadata.create_all(bind=engine)
     _seed_admin()
     start_scheduler()
+    start_cleanup_scheduler()
     yield
+    shutdown_cleanup_scheduler()
     shutdown_scheduler()
+
 
 
 app = FastAPI(

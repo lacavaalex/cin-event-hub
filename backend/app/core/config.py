@@ -31,3 +31,15 @@ GMAIL_CREDENTIALS_FILE: str = os.getenv(
 GMAIL_TOKEN_FILE: str = os.getenv("GMAIL_TOKEN_FILE", "./gmail_token.json")
 GMAIL_QUERY: str = os.getenv("GMAIL_QUERY", "newer_than:7d")
 GMAIL_MAX_RESULTS: int = int(os.getenv("GMAIL_MAX_RESULTS", "50"))
+
+# ── Limpeza de eventos expirados (US 5.1 / 5.2) ──────────────
+CLEANUP_ENABLED: bool = os.getenv("CLEANUP_ENABLED", "true").lower() in {
+    "1", "true", "yes", "on"
+}
+CLEANUP_CRON_HOUR: int = int(os.getenv("CLEANUP_CRON_HOUR", "3"))
+CLEANUP_CRON_MINUTE: int = int(os.getenv("CLEANUP_CRON_MINUTE", "0"))
+_raw_cleanup_interval = os.getenv("CLEANUP_INTERVAL_MINUTES")
+CLEANUP_INTERVAL_MINUTES: int | None = (
+    int(_raw_cleanup_interval) if _raw_cleanup_interval else None
+)
+
