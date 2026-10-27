@@ -47,3 +47,16 @@ class EventRead(BaseModel):
     registration_link: str
     status: str
     origin: str
+
+
+class EventPage(BaseModel):
+    """Resposta paginada do GET /events (IESI-70).
+
+    ``items``: eventos da página; ``page``: página atual (começa em 1);
+    ``total_pages``: quantas páginas existem (0 quando não há eventos). A
+    próxima página existe quando ``page < total_pages``.
+    """
+
+    items: list[EventRead]
+    page: int
+    total_pages: int
