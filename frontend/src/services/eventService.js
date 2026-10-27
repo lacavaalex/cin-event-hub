@@ -31,7 +31,10 @@ export async function getEvents() {
     throw new Error('Erro de conexão. Tente novamente.');
   }
   if (!res.ok) throw new Error('Não foi possível carregar os eventos.');
-  return res.json();
+  const data = await res.json();
+  // GET /events agora é paginado ({ items, page, total_pages }, IESI-70). A Home
+  // ainda mostra só a primeira página até a paginação do front (IESI-72).
+  return Array.isArray(data) ? data : data.items;
 }
 
 export async function getEventById(id) {

@@ -4,6 +4,7 @@ Mantém compatibilidade com o repositório da branch develop_alb (Albert),
 adicionando as operações de criação (US 2.1) e listagem (US 3.1).
 """
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.event import Event
@@ -33,6 +34,11 @@ def get_all(db: Session, limit: int = 20, offset: int = 0) -> list[Event]:
         .offset(offset)
         .all()
     )
+
+
+def count_active(db: Session) -> int:
+    """Conta os eventos ativos (base do total de páginas da listagem, IESI-70)."""
+    return db.query(func.count(Event.id)).filter(Event.status == "active").scalar()
 
 
 def get_by_id(db: Session, event_id: int) -> Event | None:
