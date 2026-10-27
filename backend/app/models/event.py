@@ -1,6 +1,11 @@
 """Model ORM do evento (tabela 'events').
 
 Compatível com o schema usado na branch develop_alb (Albert).
+
+Os nomes dos atributos em Python (id, date, time, location) são os que o
+backend usa; o primeiro argumento de ``mapped_column`` é o nome da coluna no
+``database/001_schema.sql`` (id_event, int_event_date, int_event_time,
+event_location). Assim o banco pode ter seus nomes sem mudar o código do backend.
 """
 
 import datetime as dt
@@ -14,12 +19,12 @@ from app.database import Base
 class Event(Base):
     __tablename__ = "events"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column("id_event", primary_key=True)
     title: Mapped[str] = mapped_column(String(200))
     description: Mapped[str] = mapped_column(Text)
-    date: Mapped[dt.date] = mapped_column(Date)
-    time: Mapped[dt.time] = mapped_column(Time)
-    location: Mapped[str] = mapped_column(String(200))
+    date: Mapped[dt.date] = mapped_column("int_event_date", Date)
+    time: Mapped[dt.time] = mapped_column("int_event_time", Time)
+    location: Mapped[str] = mapped_column("event_location", String(200))
     event_type: Mapped[str] = mapped_column(String(50))
     registration_link: Mapped[str] = mapped_column(String(500))
     status: Mapped[str] = mapped_column(String(20), default="active")

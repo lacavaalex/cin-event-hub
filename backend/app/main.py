@@ -1,7 +1,7 @@
 """Ponto de entrada da aplicação FastAPI — CIn Event Hub Backend.
 
 Ao iniciar:
-1. Cria as tabelas no banco (SQLite / PostgreSQL) se não existirem.
+1. Cria no PostgreSQL as tabelas que ainda não existirem (as de database/001_schema.sql já vêm prontas).
 2. Gera o admin seed se a tabela estiver vazia (credenciais no .env).
 3. Registra os routers de autenticação e eventos.
 """
@@ -19,6 +19,7 @@ from app.core.security import hash_password
 from app.database.database import Base, SessionLocal, engine
 from app.models.admin import Admin  # noqa: F401 — registra o model no metadata
 from app.models.event import Event  # noqa: F401 — registra o model no metadata
+from app.models.user import User  # noqa: F401 — registra o model no metadata (FK de favorites)
 from app.models.extraction_log import ExtractionLog  # noqa: F401 — registra o model no metadata
 from app.models.events.models import Favorite  # noqa: F401 — registra o model no metadata
 from app.repositories import admin_repository
@@ -43,6 +44,8 @@ def _seed_admin() -> None:
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Lifecycle hook: cria tabelas e seed antes de aceitar requisições."""
+    # checkfirst (padrão): não recria nem altera users/extractions/events, que
+    # nascem do database/001_schema.sql com todas as restrições do banco.
     Base.metadata.create_all(bind=engine)
     _seed_admin()
     start_scheduler()

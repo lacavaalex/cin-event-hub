@@ -7,7 +7,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ── Banco de dados ──────────────────────────────────────────────────
-DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./eventos.db")
+# PostgreSQL é o banco do projeto (dev, testes e produção). O padrão abaixo é o
+# PostgreSQL local descrito em docs/migracao-postgresql.md; para outro servidor,
+# defina DATABASE_URL no .env. SQLite deixou de ser suportado.
+DATABASE_URL: str = os.getenv(
+    "DATABASE_URL", "postgresql+psycopg://postgres:dev@localhost:5432/eventos"
+)
 
 # ── JWT ─────────────────────────────────────────────────────────────
 SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", os.getenv("SECRET_KEY", "troque-esta-chave-em-producao"))
