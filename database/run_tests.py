@@ -14,6 +14,10 @@ Para subir um PostgreSQL descartável com Docker:
 
 O script cria bancos temporários (iesi_test_*), roda schema, seed e testes e
 apaga os bancos no final. Nenhum outro banco do servidor é alterado.
+Etapas: (1) aplica o 001_schema.sql e testa as 5 tabelas (usuario, extracao,
+events, favorito, email_associado) com suas restrições, chaves estrangeiras e
+exclusões em cascata; (2) aplica o schema e o seed (20 eventos), testa o seed e
+repete os dois para provar que o seed não duplica nada.
 Código de saída: 0 = tudo passou, 1 = algum teste falhou, 2 = sem conexão.
 """
 
