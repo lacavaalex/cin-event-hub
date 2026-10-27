@@ -72,8 +72,13 @@ CREATE TABLE events (
 
 	CONSTRAINT ck_events_event_type
         CHECK (event_type IN ('Palestra', 'Workshop', 'Hackathon', 'Outro')),
+    -- link http(s) obrigatório nos eventos manuais (US 2.1). Evento extraído de
+    -- e-mail (US 4.1) pode vir sem link: o parser grava '' quando não acha URL e a
+    -- coluna é NOT NULL. Por isso o vazio só é aceito fora da origem 'manual'; link
+    -- preenchido precisa ser http(s) em qualquer origem.
     CONSTRAINT ck_events_registration_link_http
-        CHECK (registration_link ~* '^https?://\S+$'),
+        CHECK (registration_link ~* '^https?://\S+$'
+               OR (origin <> 'manual' AND registration_link = '')),
     CONSTRAINT ck_events_status CHECK (status IN ('active', 'inactive')),
     CONSTRAINT ck_events_capacity CHECK (capacity IS NULL OR capacity > 0),
     CONSTRAINT ck_events_fim_completo

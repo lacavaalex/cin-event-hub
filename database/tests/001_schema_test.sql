@@ -168,6 +168,10 @@ SELECT pg_temp.deve_inserir('os quatro tipos de evento são aceitos', $q$
            ('T2', 'd', 'Workshop', '2026-12-02', '10:00', 'CIn', 'https://x.com'),
            ('T3', 'd', 'Hackathon', '2026-12-02', '10:00', 'CIn', 'https://x.com'),
            ('T4', 'd', 'Outro', '2026-12-02', '10:00', 'CIn', 'https://x.com')$q$);
+SELECT pg_temp.deve_inserir('evento de e-mail sem link (o parser pode não achar um — US 4.1)', $q$
+    INSERT INTO events (title, description, event_type, int_event_date, int_event_time,
+                        event_location, registration_link, origin)
+    VALUES ('Evento K', 'd', 'Palestra', '2026-12-08', '10:00', 'CIn', '', 'email')$q$);
 SELECT pg_temp.deve_inserir('status inactive é aceito', $q$
     INSERT INTO events (title, description, event_type, int_event_date, int_event_time,
                         event_location, registration_link, status)
@@ -191,6 +195,14 @@ SELECT pg_temp.deve_falhar('local só com espaços', $q$
 SELECT pg_temp.deve_falhar('link de inscrição sem http(s)', $q$
     INSERT INTO events (title, description, event_type, int_event_date, int_event_time, event_location, registration_link)
     VALUES ('B', 'd', 'Palestra', '2026-12-10', '10:00', 'CIn', 'x.com')$q$,
+    'ck_events_registration_link_http');
+SELECT pg_temp.deve_falhar('evento manual sem link de inscrição (vazio)', $q$
+    INSERT INTO events (title, description, event_type, int_event_date, int_event_time, event_location, registration_link)
+    VALUES ('B', 'd', 'Palestra', '2026-12-10', '10:00', 'CIn', '')$q$,
+    'ck_events_registration_link_http');
+SELECT pg_temp.deve_falhar('evento de e-mail com link preenchido sem http(s)', $q$
+    INSERT INTO events (title, description, event_type, int_event_date, int_event_time, event_location, registration_link, origin)
+    VALUES ('B', 'd', 'Palestra', '2026-12-10', '10:00', 'CIn', 'x.com', 'email')$q$,
     'ck_events_registration_link_http');
 SELECT pg_temp.deve_falhar('tipo de evento inválido', $q$
     INSERT INTO events (title, description, event_type, int_event_date, int_event_time, event_location, registration_link)
