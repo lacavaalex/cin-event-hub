@@ -1,5 +1,7 @@
 """Repositório dos logs de extração de e-mails (US 4.1)."""
 
+from collections.abc import Sequence
+
 from sqlalchemy.orm import Session
 
 from app.models.extraction_log import ExtractionLog
@@ -28,6 +30,19 @@ def list_by_status(
     return (
         db.query(ExtractionLog)
         .filter(ExtractionLog.status == status)
+        .order_by(ExtractionLog.created_at.desc(), ExtractionLog.id.desc())
+        .limit(limit)
+        .all()
+    )
+
+
+def list_by_statuses(
+    db: Session, statuses: Sequence[str], limit: int = 50
+) -> list[ExtractionLog]:
+    """Lista logs cujo status está em ``statuses`` (alertas da US 4.2 + US 4.4)."""
+    return (
+        db.query(ExtractionLog)
+        .filter(ExtractionLog.status.in_(list(statuses)))
         .order_by(ExtractionLog.created_at.desc(), ExtractionLog.id.desc())
         .limit(limit)
         .all()
