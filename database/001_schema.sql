@@ -37,7 +37,7 @@ CREATE TABLE extracao (
 	CONSTRAINT ck_extracao_prompt_preenchido     CHECK (btrim(prompt) <> '')
 );
 
-CREATE UNIQUE INDEX sucesso_de_extracao
+CREATE UNIQUE INDEX uk_sucesso_de_extracao
 ON extracao(message_id, thread_id) WHERE status = 'success';
 
 
@@ -79,8 +79,19 @@ CREATE TABLE events (
     CONSTRAINT ck_events_fim_completo
         CHECK ((end_event_date IS NULL) = (end_event_time IS NULL)),
     CONSTRAINT ck_events_fim_apos_inicio
-        CHECK (end_event_date IS NULL OR (end_event_date, end_event_time) >= (int_event_date, int_event_time))
+        CHECK (end_event_date IS NULL OR (end_event_date, end_event_time) >= (int_event_date, int_event_time)),
+	CONSTRAINT ck_events_criador_unico
+    CHECK (NOT (extraction_id IS NOT NULL AND admin_id IS NOT NULL))
 );
+
+CREATE INDEX data_evento
+ON events(int_event_date);
+
+CREATE INDEX tipo_evento
+ON events(event_type);
+
+CREATE INDEX titulo_evento
+ON events(title);
 
 CREATE TABLE favorito (
 	id_usuario	  	INTEGER		NOT NULL,
