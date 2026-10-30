@@ -27,18 +27,18 @@ SELECT pg_temp.verificar('6 palestras, 8 workshops, 4 hackathons e 2 do tipo Out
     AND (SELECT count(*) FROM events WHERE event_type = 'Outro')     = 2);
 
 SELECT pg_temp.verificar('nenhum evento no passado (a limpeza da US 5.1 não os apaga)',
-    (SELECT count(*) FROM events WHERE date < CURRENT_DATE) = 0);
+    (SELECT count(*) FROM events WHERE int_event_date < CURRENT_DATE) = 0);
 SELECT pg_temp.verificar('um evento hoje',
-    (SELECT count(*) FROM events WHERE date = CURRENT_DATE) = 1);
+    (SELECT count(*) FROM events WHERE int_event_date = CURRENT_DATE) = 1);
 SELECT pg_temp.verificar('um dia com 3 eventos (teste de ordenação por hora)',
-    (SELECT max(c) FROM (SELECT count(*) AS c FROM events GROUP BY date) d) >= 3);
+    (SELECT max(c) FROM (SELECT count(*) AS c FROM events GROUP BY int_event_date) d) >= 3);
 
 SELECT pg_temp.verificar('título longo (150+) e descrição longa (400+ caracteres)',
     (SELECT max(length(title)) FROM events) >= 150
     AND (SELECT max(length(description)) FROM events) >= 400);
 SELECT pg_temp.verificar('há evento que termina em outro dia e evento sem horário de fim',
-    (SELECT count(*) FROM events WHERE end_date > date) >= 1
-    AND (SELECT count(*) FROM events WHERE end_date IS NULL) >= 1);
+    (SELECT count(*) FROM events WHERE end_event_date > int_event_date) >= 1
+    AND (SELECT count(*) FROM events WHERE end_event_date IS NULL) >= 1);
 SELECT pg_temp.verificar('há eventos com e sem capacidade',
     (SELECT count(*) FROM events WHERE capacity IS NULL) >= 1
     AND (SELECT count(*) FROM events WHERE capacity IS NOT NULL) >= 1);

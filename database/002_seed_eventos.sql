@@ -4,7 +4,9 @@
 -- Pré-requisito: database/001_schema.sql já executado (PostgreSQL).
 -- Execução: psql -U <usuario> -d <banco> -v ON_ERROR_STOP=1 -f database/002_seed_eventos.sql
 --
--- Usa as colunas do backend (title, event_type, registration_link...).
+-- Usa as colunas do 001_schema.sql: title, event_type, registration_link e as
+-- de data e local com os nomes do schema (int_event_date, int_event_time,
+-- end_event_date, end_event_time, event_location).
 -- status e origin ficam no padrão do banco ('active' e 'manual').
 -- As datas são relativas ao dia da execução (CURRENT_DATE + N dias), então
 -- os eventos ficam sempre no futuro e a limpeza da US 5.1 não os apaga.
@@ -19,8 +21,8 @@
 --   * eventos com e sem capacidade; horários em 24h
 -- =====================================================================
 
-INSERT INTO events (title, description, date, time, location, event_type,
-                    registration_link, capacity, end_date, end_time)
+INSERT INTO events (title, description, int_event_date, int_event_time, event_location,
+                    event_type, registration_link, capacity, end_event_date, end_event_time)
 SELECT v.title,
        v.description,
        CURRENT_DATE + v.dias,
