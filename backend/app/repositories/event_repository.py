@@ -6,6 +6,7 @@ adicionando as operações de criação (US 2.1) e listagem (US 3.1).
 
 import datetime as dt
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.event import Event
@@ -30,12 +31,11 @@ def get_by_id(db: Session, event_id: int) -> Event | None:
 
 
 def get_expired_events(db: Session, reference_date: dt.date) -> list[Event]:
-    """Retorna todos os eventos com data anterior à data de referência (US 5.1)."""
-    return db.query(Event).filter(Event.date < reference_date).all()
+    """Retorna todos os eventos cuja data limite é anterior à data de referência (US 5.1)."""
+    return (
+        db.query(Event)
+        .filter(func.coalesce(Event.end_date, Event.date) < reference_date)
+        .all()
+    )
 
-
-def delete(db: Session, event: Event) -> None:
-    """Remove o evento do banco (US 2.3 / US 5.1)."""
-    db.delete(event)
-    db.commit()
 

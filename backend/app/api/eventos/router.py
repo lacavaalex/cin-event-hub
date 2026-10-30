@@ -25,7 +25,10 @@ from app.schemas.events.schemas import (
 )
 from app.services.event_service import PastEventDateError, create_event, list_events
 from app.services.events import service
-from app.services.events.cleanup_service import clean_expired_events
+from app.services.events.cleanup_service import (
+    FutureReferenceDateError,
+    clean_expired_events,
+)
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -150,5 +153,12 @@ def trigger_cleanup(
     db: Session = Depends(get_db),
 ):
     """Dispara a limpeza de eventos expirados (US 5.1 / 5.2). Requer autenticação de admin."""
-    return clean_expired_events(db, reference_date=reference_date)
+    try:
+        return clean_expired_events(db, reference_date=reference_date)
+    except FutureReferenceDateError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
+
 

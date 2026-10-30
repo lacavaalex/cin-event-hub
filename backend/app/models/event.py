@@ -19,6 +19,8 @@ class Event(Base):
     description: Mapped[str] = mapped_column(Text)
     date: Mapped[dt.date] = mapped_column(Date)
     time: Mapped[dt.time] = mapped_column(Time)
+    end_date: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
+    end_time: Mapped[dt.time | None] = mapped_column(Time, nullable=True)
     location: Mapped[str] = mapped_column(String(200))
     event_type: Mapped[str] = mapped_column(String(50))
     registration_link: Mapped[str] = mapped_column(String(500))

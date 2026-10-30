@@ -5,18 +5,15 @@
 !.env.example
 
 # Google APIs & OAuth credentials
-*credentials*.json
-*token*.json
-gmail_credentials.json
-gmail_token.json
+gmail_credentials*.json
+gmail_token*.json
 credentials.json
 token.json
 client_secret*.json
 
 # AI / Gemini API keys & secrets
-*gemini*.json
-*gemini*key*
-*secret*
+gemini_key*.json
+*gemini*token*.json
 *.pem
 *.key
 
@@ -26,8 +23,8 @@ __pycache__/
 *$py.class
 venv/
 .venv/
-env/
 dist/
+
 build/
 *.egg-info/
 *.db

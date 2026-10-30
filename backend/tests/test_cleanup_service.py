@@ -39,6 +39,8 @@ from app.services.events.cleanup_scheduler import (
     start_cleanup_scheduler,
 )
 from app.services.events.cleanup_service import (
+    LOCAL_TZ,
+    FutureReferenceDateError,
     clean_expired_events,
     get_expired_events,
     is_event_expired,
@@ -50,6 +52,8 @@ def _criar_evento(
     title: str,
     date: dt.date,
     time: dt.time = dt.time(10, 0),
+    end_date: dt.date | None = None,
+    end_time: dt.time | None = None,
     status: str = "active",
 ) -> Event:
     """Helper para persistir eventos de teste."""
@@ -58,6 +62,8 @@ def _criar_evento(
         description=f"Descrição de {title}",
         date=date,
         time=time,
+        end_date=end_date,
+        end_time=end_time,
         location="CIn - Auditório",
         event_type="Palestra",
         registration_link="https://cin.ufpe.br/inscricao",
@@ -68,6 +74,7 @@ def _criar_evento(
     db.commit()
     db.refresh(event)
     return event
+
 
 
 # ── US 5.1: Regra de Negócio de Expiração de Eventos ──────────────────
@@ -209,6 +216,58 @@ class TestExpiracaoEventosUS51:
         assert log.event_id is None
         assert log.status == "processado"
 
+    def test_evento_multidias_que_termina_no_futuro_permanece_visivel(
+        self, db_session: Session
+    ):
+        """Evento de vários dias que começou no passado mas só termina no futuro não é excluído."""
+        ref = dt.date(2026, 9, 10)
+        # Começou dia 08 e termina dia 12
+        evento = _criar_evento(
+            db_session,
+            "Congresso 3 Dias",
+            date=dt.date(2026, 9, 8),
+            end_date=dt.date(2026, 9, 12),
+            end_time=dt.time(18, 0),
+        )
+
+        assert is_event_expired(evento, reference_date=ref) is False
+
+        report = clean_expired_events(db_session, reference_date=ref)
+        assert report.expired_count == 0
+        assert event_repository.get_by_id(db_session, evento.id) is not None
+
+    def test_evento_multidias_que_terminou_no_passado_e_excluido(
+        self, db_session: Session
+    ):
+        """Evento de vários dias cujo término já ocorreu é excluído."""
+        ref = dt.date(2026, 9, 10)
+        # Começou dia 05 e terminou dia 08 (antes do dia 10)
+        evento = _criar_evento(
+            db_session,
+            "Hackathon Passado",
+            date=dt.date(2026, 9, 5),
+            end_date=dt.date(2026, 9, 8),
+            end_time=dt.time(22, 0),
+        )
+
+        assert is_event_expired(evento, reference_date=ref) is True
+
+        report = clean_expired_events(db_session, reference_date=ref)
+        assert report.expired_count == 1
+        assert evento.id in report.deleted_event_ids
+        assert event_repository.get_by_id(db_session, evento.id) is None
+
+    def test_limpeza_rejeita_data_futura_por_padrao(self, db_session: Session):
+        """Passar reference_date no futuro levanta FutureReferenceDateError."""
+        hoje = dt.datetime.now(LOCAL_TZ).date()
+        amanha = hoje + dt.timedelta(days=1)
+
+        with pytest.raises(FutureReferenceDateError) as exc_info:
+            clean_expired_events(db_session, reference_date=amanha)
+
+        assert "não pode ser futura" in str(exc_info.value)
+
+
 
 # ── US 5.2: Rotina Agendada (CRON) e Relatório ────────────────────────
 
@@ -232,8 +291,9 @@ class TestAgendamentoLimpezaUS52:
             lambda: db_session,
         )
 
-        ontem = dt.date.today() - dt.timedelta(days=1)
-        amanha = dt.date.today() + dt.timedelta(days=1)
+        hoje = dt.datetime.now(LOCAL_TZ).date()
+        ontem = hoje - dt.timedelta(days=1)
+        amanha = hoje + dt.timedelta(days=1)
 
         ev_ontem = _criar_evento(db_session, "Evento Ontem", ontem)
         ev_amanha = _criar_evento(db_session, "Evento Amanhã", amanha)
@@ -252,7 +312,7 @@ class TestAgendamentoLimpezaUS52:
 
         # E um relatório de limpeza é gerado
         assert report.executed_at is not None
-        assert report.reference_date == dt.date.today()
+        assert report.reference_date == hoje
         assert "Limpeza concluída com sucesso" in report.message
 
     def test_start_and_shutdown_cleanup_scheduler(
@@ -322,4 +382,28 @@ class TestEndpointCleanup:
             assert "Limpeza concluída com sucesso" in data["message"]
         finally:
             app.dependency_overrides.pop(get_db, None)
+
+    def test_trigger_cleanup_rejeita_data_futura(self, db_session: Session):
+        """Admin não pode passar data de referência futura (evita apagar o banco acidentalmente)."""
+        from app.database import get_db
+
+        app.dependency_overrides[get_db] = lambda: db_session
+        try:
+            client = TestClient(app)
+            token = create_access_token({"sub": "admin@cin.ufpe.br"})
+            headers = {"Authorization": f"Bearer {token}"}
+
+            hoje = dt.datetime.now(LOCAL_TZ).date()
+            futuro = hoje + dt.timedelta(days=30)
+
+            response = client.post(
+                f"/events/cleanup?reference_date={futuro}",
+                headers=headers,
+            )
+
+            assert response.status_code == 400
+            assert "não pode ser futura" in response.json()["detail"]
+        finally:
+            app.dependency_overrides.pop(get_db, None)
+
 

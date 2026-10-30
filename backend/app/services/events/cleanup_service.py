@@ -38,11 +38,20 @@ class CleanupReport:
     message: str = ""
 
 
+class FutureReferenceDateError(ValueError):
+    """Data de referência no futuro não é permitida para limpeza de eventos."""
+
+
 def is_event_expired(event: Event, reference_date: dt.date | None = None) -> bool:
-    """Verifica se um evento está expirado em relação a uma data de referência."""
+    """Verifica se um evento está expirado em relação a uma data de referência (US 5.1).
+
+    A data limite do evento é a sua data de término (end_date), quando informada,
+    ou a data de início (date) para eventos de um único dia.
+    """
     if reference_date is None:
         reference_date = dt.datetime.now(LOCAL_TZ).date()
-    return event.date < reference_date
+    limit_date = event.end_date if getattr(event, "end_date", None) is not None else event.date
+    return limit_date < reference_date
 
 
 def get_expired_events(
@@ -59,18 +68,25 @@ def get_expired_events(
 def clean_expired_events(
     db: Session,
     reference_date: dt.date | None = None,
+    allow_future: bool = False,
 ) -> CleanupReport:
     """Executa a limpeza de eventos com data limite ultrapassada (US 5.1 / 5.2).
 
-    Para cada evento com data < reference_date:
+    Para cada evento com data limite < reference_date:
     1. Desvincula logs de extração associados para manter integridade referencial.
     2. Exclui o evento do banco de dados (removendo-o da listagem).
     3. Registra mensagem de log informando a exclusão do evento.
     4. Gera o relatório com os detalhes dos eventos removidos.
     """
     now = dt.datetime.now(LOCAL_TZ)
+    today = now.date()
     if reference_date is None:
-        reference_date = now.date()
+        reference_date = today
+
+    if reference_date > today and not allow_future:
+        raise FutureReferenceDateError(
+            f"A data de referência ({reference_date}) não pode ser futura."
+        )
 
     expired_events = get_expired_events(db, reference_date)
 
