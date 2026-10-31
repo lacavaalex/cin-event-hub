@@ -10,8 +10,11 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
+from app.models.admin import Admin  # noqa: F401 — registra a tabela admins
 from app.models.event import Event  # noqa: F401 — registra a tabela events
+from app.models.events.models import Favorite  # noqa: F401 — registra a tabela favorites
 from app.models.extraction_log import ExtractionLog  # noqa: F401 — registra extraction_logs
+from app.models.user import User  # noqa: F401 — registra a tabela users
 
 
 @pytest.fixture()

@@ -1,4 +1,4 @@
-"""Router de eventos — rotas de criação, listagem, edição, exclusão e favoritos.
+"""Router de eventos — rotas de criação, listagem, edição, exclusão, favoritos e limpeza.
 
 POST /events                   → cria evento (US 2.1, protegida por JWT)
 GET  /events                   → lista eventos ativos (US 3.1, pública)
@@ -7,13 +7,16 @@ PUT  /events/{id}              → edita evento (US 2.2, protegida por JWT)
 DELETE /events/{id}            → exclui evento (US 2.3, protegida por JWT)
 POST /events/{id}/favorite     → favorita evento (US 6.1)
 DELETE /events/{id}/favorite   → desfavorita evento (US 6.1)
+POST /events/cleanup           → dispara limpeza de expirados (US 5.1/5.2, protegida por JWT)
 """
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+import datetime as dt
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_admin
 from app.database import get_db
+from app.schemas.cleanup import CleanupReportSchema
 from app.schemas.event import EventCreate, EventRead
 from app.schemas.events.schemas import (
     EventRead as EventReadAlb,
@@ -22,8 +25,13 @@ from app.schemas.events.schemas import (
 )
 from app.services.event_service import PastEventDateError, create_event, list_events
 from app.services.events import service
+from app.services.events.cleanup_service import (
+    FutureReferenceDateError,
+    clean_expired_events,
+)
 
 router = APIRouter(prefix="/events", tags=["events"])
+
 
 
 def get_current_user_id(x_user_id: int = Header(..., alias="X-User-Id")) -> int:
@@ -128,3 +136,29 @@ def delete_event(event_id: int, db: Session = Depends(get_db)):
         service.delete_event(db, event_id)
     except service.EventNotFoundError:
         raise HTTPException(status_code=404, detail="Evento não encontrado")
+
+
+# -- Limpeza de Eventos Expirados (US 5.1 / 5.2) --
+
+@router.post(
+    "/cleanup",
+    response_model=CleanupReportSchema,
+    dependencies=[Depends(get_current_admin)],
+)
+def trigger_cleanup(
+    reference_date: dt.date | None = Query(
+        None,
+        description="Data de referência opcional (YYYY-MM-DD). Se omitida, usa a data atual.",
+    ),
+    db: Session = Depends(get_db),
+):
+    """Dispara a limpeza de eventos expirados (US 5.1 / 5.2). Requer autenticação de admin."""
+    try:
+        return clean_expired_events(db, reference_date=reference_date)
+    except FutureReferenceDateError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
+
+
