@@ -23,6 +23,7 @@ Servidor: por padrão ``postgresql://postgres:dev@localhost:5432/postgres``
 ``DATABASE_ADMIN_URL``.
 """
 
+import datetime as dt
 import os
 import pathlib
 
@@ -103,3 +104,35 @@ def db_session(engine):
         yield session
     finally:
         session.close()
+
+
+@pytest.fixture()
+def criar_eventos(db_session):
+    """Fábrica: ``criar_eventos(n)`` grava n eventos manuais, um por dia, a partir de 2030-01-01.
+
+    Os títulos são "Evento 1", "Evento 2"... na ordem cronológica. Parâmetros:
+    ``status``, ``data_inicial``, ``hora``, ``prefixo`` e ``dias_entre`` para
+    montar os casos de cada teste.
+    """
+
+    def _criar(quantidade, status="active", data_inicial=dt.date(2030, 1, 1),
+               hora=dt.time(10, 0), prefixo="Evento", dias_entre=1):
+        eventos = []
+        for i in range(quantidade):
+            evento = Event(
+                title=f"{prefixo} {i + 1}",
+                description="Descrição",
+                date=data_inicial + dt.timedelta(days=i * dias_entre),
+                time=hora,
+                location="CIn",
+                event_type="Palestra",
+                registration_link="https://exemplo.com",
+                status=status,
+                origin="manual",
+            )
+            db_session.add(evento)
+            eventos.append(evento)
+        db_session.commit()
+        return eventos
+
+    return _criar

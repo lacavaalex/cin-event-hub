@@ -17,9 +17,22 @@ def create(db: Session, event: Event) -> Event:
     return event
 
 
-def get_all(db: Session) -> list[Event]:
-    """Retorna todos os eventos ativos ordenados por data (US 3.1)."""
-    return db.query(Event).filter(Event.status == "active").order_by(Event.date).all()
+def get_all(db: Session, limit: int = 20, offset: int = 0) -> list[Event]:
+    """Retorna uma página de eventos ativos em ordem cronológica (US 3.1, IESI-71).
+
+    ``limit`` e ``offset`` viram LIMIT/OFFSET na query do PostgreSQL. A ordem é
+    data, hora e id: o id desempata eventos no mesmo horário para que, entre uma
+    página e outra, nenhum evento se repita ou fique de fora (sem ordem total,
+    o PostgreSQL pode devolver linhas empatadas em qualquer ordem).
+    """
+    return (
+        db.query(Event)
+        .filter(Event.status == "active")
+        .order_by(Event.date, Event.time, Event.id)
+        .limit(limit)
+        .offset(offset)
+        .all()
+    )
 
 
 def get_by_id(db: Session, event_id: int) -> Event | None:
