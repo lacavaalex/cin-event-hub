@@ -1,7 +1,7 @@
 """Router de eventos — rotas de criação, listagem, edição, exclusão e favoritos.
 
 POST /events                   → cria evento (US 2.1, protegida por JWT)
-GET  /events                   → lista eventos ativos (US 3.1, pública)
+GET  /events?page=&page_size=  → lista eventos ativos paginados (US 3.1, IESI-70, pública)
 GET  /events/{id}              → busca evento por ID (US 2.2)
 PUT  /events/{id}              → edita evento (US 2.2, protegida por JWT)
 DELETE /events/{id}            → exclui evento (US 2.3, protegida por JWT)
@@ -9,18 +9,24 @@ POST /events/{id}/favorite     → favorita evento (US 6.1)
 DELETE /events/{id}/favorite   → desfavorita evento (US 6.1)
 """
 
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_admin
 from app.database import get_db
-from app.schemas.event import EventCreate, EventRead
+from app.schemas.event import EventCreate, EventPage, EventRead
 from app.schemas.events.schemas import (
     EventRead as EventReadAlb,
     EventUpdate,
     FavoriteStatus,
 )
-from app.services.event_service import PastEventDateError, create_event, list_events
+from app.services.event_service import (
+    DEFAULT_PAGE_SIZE,
+    MAX_PAGE_SIZE,
+    PastEventDateError,
+    create_event,
+    list_events,
+)
 from app.services.events import service
 
 router = APIRouter(prefix="/events", tags=["events"])
@@ -53,10 +59,20 @@ def create(payload: EventCreate, db: Session = Depends(get_db)):
 
 # -- Listagem (US 3.1) --
 
-@router.get("", response_model=list[EventRead])
-def list_all(db: Session = Depends(get_db)):
-    """Lista todos os eventos ativos. Rota pública."""
-    return list_events(db)
+@router.get("", response_model=EventPage)
+def list_all(
+    page: int = Query(1, ge=1, description="Página atual (começa em 1)"),
+    page_size: int = Query(
+        DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE, description="Eventos por página"
+    ),
+    db: Session = Depends(get_db),
+):
+    """Lista os eventos ativos, uma página por vez. Rota pública.
+
+    Sem parâmetros devolve os 20 primeiros. A resposta traz ``page`` e
+    ``total_pages``: há próxima página enquanto ``page < total_pages``.
+    """
+    return list_events(db, page=page, page_size=page_size)
 
 
 # -- Favoritos (US 6.1) --
