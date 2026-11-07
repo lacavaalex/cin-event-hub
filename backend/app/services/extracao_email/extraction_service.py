@@ -33,6 +33,10 @@ from app.models.event import Event
 from app.models.extraction_log import ExtractionLog
 from app.repositories import event_repository, extraction_log_repository
 from app.services.extracao_email.gmail_client import GmailClient, RawEmail
+from app.services.extracao_email.minimizacao import (
+    dominio_do_remetente,
+    mascarar_dados_pessoais,
+)
 from app.services.extracao_email.parser import (
     InsufficientDataError,
     ParsedEvent,
@@ -216,18 +220,22 @@ def _log(
     error_message: str | None = None,
     event_id: int | None = None,
 ) -> None:
+    # LGPD / IESI-60 (DoD D8): único ponto de gravação do log, então é aqui que
+    # se minimiza — remetente vira só o domínio e textos livres perdem e-mail,
+    # CPF e telefone antes de ir para o banco. Veja ``minimizacao.py``.
     extraction_log_repository.create(
         db,
         ExtractionLog(
             gmail_message_id=raw.message_id,
-            source_email=raw.sender,
+            source_email=dominio_do_remetente(raw.sender),
             status=status,
-            extracted_data=extracted_data,
-            error_message=error_message,
+            extracted_data=mascarar_dados_pessoais(extracted_data),
+            error_message=_short(error_message) if error_message is not None else None,
             event_id=event_id,
         ),
     )
 
 
-def _short(exc: Exception) -> str:
-    return str(exc)[:500]
+def _short(exc: Exception | str) -> str:
+    """Mensagem de erro para o log: sem dados pessoais e cabendo em 500 caracteres."""
+    return mascarar_dados_pessoais(str(exc))[:500]
