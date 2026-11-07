@@ -3,9 +3,11 @@
 Entidade "LogDeExtração":
 id, e-mail de origem, status (processado/ignorado/erro), timestamp, dados extraídos.
 
-Minimização de dados: o corpo do e-mail não é persistido — apenas
+Minimização de dados (LGPD, IESI-60): o corpo do e-mail não é persistido — apenas
 os campos já extraídos do evento e o identificador da mensagem, para idempotência
-da varredura.
+da varredura. ``source_email`` guarda só o domínio do remetente e os textos livres
+(``extracted_data``, ``error_message``) são gravados com e-mail, CPF e telefone
+mascarados (veja ``services/extracao_email/minimizacao.py``).
 """
 
 import datetime as dt
