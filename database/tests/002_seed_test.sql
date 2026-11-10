@@ -43,6 +43,6 @@ SELECT pg_temp.verificar('há eventos com e sem capacidade',
     (SELECT count(*) FROM events WHERE capacity IS NULL) >= 1
     AND (SELECT count(*) FROM events WHERE capacity IS NOT NULL) >= 1);
 
-SELECT pg_temp.verificar('todos os eventos são ativos, manuais, sem extração e sem admin',
+SELECT pg_temp.verificar('todos os eventos são ativos, manuais e sem admin',
     (SELECT bool_and(status = 'active' AND origin = 'manual'
-                     AND extraction_id IS NULL AND admin_id IS NULL) FROM events));
+                     AND admin_id IS NULL) FROM events));

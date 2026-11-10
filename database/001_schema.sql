@@ -17,33 +17,8 @@ CREATE TABLE usuario (
 );
 
 
-CREATE TABLE extracao (
-	id_extracao		INTEGER			GENERATED ALWAYS AS IDENTITY,
-	message_id		VARCHAR(255)	NOT NULL,
-	thread_id		VARCHAR(255)	NOT NULL,
-	body_hash 		VARCHAR(64)		NOT NULL,
-	input_text		TEXT,
-	prompt			TEXT			NOT NULL,
-	json_output		JSONB,
-	status			VARCHAR(20)		NOT NULL DEFAULT 'pending' 
-		CHECK (status IN ('pending', 'success', 'failed')),
-	error_message 	TEXT,
-    extracted_at  	TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-	CONSTRAINT pk_extracao PRIMARY KEY (id_extracao),
-	CONSTRAINT ck_extracao_message_id_preenchido CHECK (btrim(message_id) <> ''),
-	CONSTRAINT ck_extracao_thread_id_preenchido  CHECK (btrim(thread_id) <> ''),
-	CONSTRAINT ck_extracao_body_hash_valido      CHECK (length(body_hash) = 64),
-	CONSTRAINT ck_extracao_prompt_preenchido     CHECK (btrim(prompt) <> '')
-);
-
-CREATE UNIQUE INDEX sucesso_de_extracao
-ON extracao(message_id, thread_id) WHERE status = 'success';
-
-
 CREATE TABLE events (
 	id_event         INTEGER      GENERATED ALWAYS AS IDENTITY,
-    extraction_id     INTEGER,
     admin_id          INTEGER,
     title             VARCHAR(200) NOT NULL,
     description       TEXT         NOT NULL,
@@ -61,8 +36,6 @@ CREATE TABLE events (
     updated_at        TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
 	CONSTRAINT pk_events PRIMARY KEY (id_event),
-	CONSTRAINT fk_events_extracao 
-		FOREIGN KEY (extraction_id) REFERENCES extracao(id_extracao) ON DELETE SET NULL,
 	CONSTRAINT fk_events_usuario
 		FOREIGN KEY (admin_id) REFERENCES usuario(id_usuario) ON DELETE SET NULL,
 		
@@ -87,6 +60,36 @@ CREATE TABLE events (
         CHECK (end_event_date IS NULL OR (end_event_date, end_event_time) >= (int_event_date, int_event_time))
 );
 
+-- Log de extração de e-mails: espelha o model ExtractionLog
+-- (backend/app/models/extraction_log.py). Os nomes das colunas são os mesmos
+-- dos atributos do model, para o model só precisar apontar para esta tabela.
+-- Minimização de dados (IESI-60): o corpo do e-mail não é guardado, só o id da
+-- mensagem e os campos já extraídos.
+-- Vem depois de events porque aponta para o evento gerado (event_id).
+CREATE TABLE extracao (
+	id					INTEGER			GENERATED ALWAYS AS IDENTITY,
+	gmail_message_id	VARCHAR(64)		NOT NULL,
+	source_email		VARCHAR(255)	NOT NULL,
+	status				VARCHAR(20)		NOT NULL,
+	extracted_data		JSONB,
+	error_message		VARCHAR(500),
+	event_id			INTEGER,
+	created_at			TIMESTAMPTZ		NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+	CONSTRAINT pk_extracao PRIMARY KEY (id),
+	-- idempotência da varredura: cada mensagem do Gmail é registrada uma vez só
+	CONSTRAINT uk_extracao_gmail_message_id UNIQUE (gmail_message_id),
+	-- o log é histórico e sobrevive à exclusão do evento (US 2.3 / US 5.1)
+	CONSTRAINT fk_extracao_events
+		FOREIGN KEY (event_id) REFERENCES events(id_event) ON DELETE SET NULL,
+
+	CONSTRAINT ck_extracao_gmail_message_id_preenchido CHECK (btrim(gmail_message_id) <> ''),
+	CONSTRAINT ck_extracao_status CHECK (status IN ('processado', 'ignorado', 'erro')),
+	-- só e-mail processado gera evento; ignorado e erro nunca têm event_id
+	CONSTRAINT ck_extracao_evento_so_processado
+		CHECK (event_id IS NULL OR status = 'processado')
+);
+
 CREATE TABLE favorito (
 	id_usuario	  	INTEGER		NOT NULL,
 	id_events      	INTEGER		NOT NULL,
@@ -101,6 +104,6 @@ CREATE TABLE email_associado (
 	id_evento		INTEGER		NOT NULL,
 
 	CONSTRAINT pk_email_associado PRIMARY KEY (id_extracao, id_evento),
-	CONSTRAINT fk_email_associado_extracao FOREIGN KEY (id_extracao) REFERENCES extracao(id_extracao) ON DELETE CASCADE,
+	CONSTRAINT fk_email_associado_extracao FOREIGN KEY (id_extracao) REFERENCES extracao(id) ON DELETE CASCADE,
 	CONSTRAINT fk_email_associado_events FOREIGN KEY (id_evento) REFERENCES events(id_event) ON DELETE CASCADE
 );
