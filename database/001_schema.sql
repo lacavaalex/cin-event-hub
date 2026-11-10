@@ -98,12 +98,3 @@ CREATE TABLE favorito (
 	CONSTRAINT fk_favorito_usuario FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE,
 	CONSTRAINT fk_favorito_evento FOREIGN KEY (id_events) REFERENCES events(id_event) ON DELETE CASCADE
 );
-
-CREATE TABLE email_associado (
-	id_extracao		INTEGER		NOT NULL,
-	id_evento		INTEGER		NOT NULL,
-
-	CONSTRAINT pk_email_associado PRIMARY KEY (id_extracao, id_evento),
-	CONSTRAINT fk_email_associado_extracao FOREIGN KEY (id_extracao) REFERENCES extracao(id) ON DELETE CASCADE,
-	CONSTRAINT fk_email_associado_events FOREIGN KEY (id_evento) REFERENCES events(id_event) ON DELETE CASCADE
-);

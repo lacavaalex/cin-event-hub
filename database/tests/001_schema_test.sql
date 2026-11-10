@@ -1,6 +1,6 @@
 -- =====================================================================
 -- Testes do database/001_schema.sql (PostgreSQL 13+)
--- Tabelas testadas: usuario, extracao, events, favorito, email_associado.
+-- Tabelas testadas: usuario, extracao, events, favorito.
 -- Jeito recomendado (cria um banco temporário e apaga no fim):
 --   python database/run_tests.py
 -- Manual, em um banco DESCARTÁVEL que já recebeu o 001_schema.sql:
@@ -276,44 +276,18 @@ SELECT pg_temp.deve_falhar('favorito de evento inexistente', $q$
     'fk_favorito_evento');
 
 -- =====================================================================
--- email_associado
--- =====================================================================
-SELECT pg_temp.deve_inserir('e-mail (extração) associado a um evento', $q$
-    INSERT INTO email_associado (id_extracao, id_evento)
-    VALUES ((SELECT id FROM extracao WHERE gmail_message_id = 'm10'),
-            (SELECT id_event FROM events WHERE title = 'Evento J'))$q$);
-SELECT pg_temp.deve_falhar('mesma associação duas vezes', $q$
-    INSERT INTO email_associado (id_extracao, id_evento)
-    VALUES ((SELECT id FROM extracao WHERE gmail_message_id = 'm10'),
-            (SELECT id_event FROM events WHERE title = 'Evento J'))$q$,
-    'pk_email_associado');
-SELECT pg_temp.deve_falhar('associação com extração inexistente', $q$
-    INSERT INTO email_associado (id_extracao, id_evento)
-    VALUES (999999, (SELECT id_event FROM events WHERE title = 'Evento J'))$q$,
-    'fk_email_associado_extracao');
-SELECT pg_temp.deve_falhar('associação com evento inexistente', $q$
-    INSERT INTO email_associado (id_extracao, id_evento)
-    VALUES ((SELECT id FROM extracao WHERE gmail_message_id = 'm10'), 999999)$q$,
-    'fk_email_associado_events');
-
--- =====================================================================
 -- Comportamentos: exclusões (ON DELETE)
 -- =====================================================================
--- favorito e email_associado somem junto com o evento (CASCADE)
+-- favorito some junto com o evento (CASCADE)
 INSERT INTO events (title, description, event_type, int_event_date, int_event_time, event_location, registration_link)
 VALUES ('Evento para apagar', 'd', 'Outro', '2026-12-20', '10:00', 'CIn', 'https://x.com');
 INSERT INTO favorito (id_usuario, id_events)
 SELECT (SELECT id_usuario FROM usuario WHERE email = 'maria@cin.ufpe.br'), id_event
 FROM events WHERE title = 'Evento para apagar';
-INSERT INTO email_associado (id_extracao, id_evento)
-SELECT (SELECT id FROM extracao WHERE gmail_message_id = 'm2'), id_event
-FROM events WHERE title = 'Evento para apagar';
 DELETE FROM events WHERE title = 'Evento para apagar';
-SELECT pg_temp.verificar('apagar o evento apaga os favoritos e as associações dele',
+SELECT pg_temp.verificar('apagar o evento apaga os favoritos dele',
     (SELECT count(*) FROM favorito f JOIN usuario u ON u.id_usuario = f.id_usuario
-     WHERE u.email = 'maria@cin.ufpe.br') = 0
-    AND (SELECT count(*) FROM email_associado a JOIN extracao x ON x.id = a.id_extracao
-         WHERE x.gmail_message_id = 'm2') = 0);
+     WHERE u.email = 'maria@cin.ufpe.br') = 0);
 
 -- apagar o usuário apaga os favoritos dele
 DELETE FROM usuario WHERE email = 'aluno@cin.ufpe.br';
@@ -337,9 +311,7 @@ DELETE FROM events WHERE title = 'Evento de e-mail para apagar';
 SELECT pg_temp.verificar('apagar o evento mantém o log de extração, com event_id nulo',
     (SELECT event_id IS NULL AND status = 'processado' FROM extracao WHERE gmail_message_id = 'm20'));
 
--- apagar a extração mantém o evento e some das associações
+-- apagar a extração mantém o evento
 DELETE FROM extracao WHERE gmail_message_id = 'm10';
 SELECT pg_temp.verificar('apagar a extração mantém o evento gerado por ela',
     (SELECT count(*) FROM events WHERE title = 'Evento J') = 1);
-SELECT pg_temp.verificar('apagar a extração remove a associação com o evento',
-    (SELECT count(*) FROM email_associado) = 0);
