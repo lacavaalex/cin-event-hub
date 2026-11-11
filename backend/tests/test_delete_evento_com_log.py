@@ -1,7 +1,7 @@
 """Apagar evento que veio de e-mail (US 2.3 e US 5.1) em PostgreSQL.
 
 O SQLite não fiscalizava chaves estrangeiras; o PostgreSQL fiscaliza. O log de
-extração aponta para o evento (``extraction_logs.event_id``) e precisa sobreviver
+extração aponta para o evento (``extracao.event_id``) e precisa sobreviver
 à exclusão dele, com ``event_id`` nulo.
 """
 import datetime as dt

@@ -100,6 +100,14 @@ SELECT pg_temp.deve_inserir('extração ignorada, sem evento e sem dados extraí
 SELECT pg_temp.verificar('created_at da extração é preenchido e event_id fica nulo',
     (SELECT created_at IS NOT NULL AND event_id IS NULL
      FROM extracao WHERE gmail_message_id = 'm3'));
+SELECT pg_temp.deve_inserir('os seis status de extração são aceitos', $q$
+    INSERT INTO extracao (gmail_message_id, source_email, status)
+    VALUES ('s1', 'sec@cin.ufpe.br', 'processado'),
+           ('s2', 'sec@cin.ufpe.br', 'processado_ia'),
+           ('s3', 'sec@cin.ufpe.br', 'ignorado'),
+           ('s4', 'sec@cin.ufpe.br', 'nao_processado'),
+           ('s5', 'sec@cin.ufpe.br', 'extracao_incompleta'),
+           ('s6', 'sec@cin.ufpe.br', 'erro')$q$);
 SELECT pg_temp.deve_inserir('remetente vazio é aceito (o Gmail pode não mandar o From)', $q$
     INSERT INTO extracao (gmail_message_id, source_email, status)
     VALUES ('m4', '', 'erro')$q$);
@@ -248,6 +256,20 @@ SELECT pg_temp.deve_falhar('extração ligada a evento inexistente', $q$
 SELECT pg_temp.deve_falhar('extração ignorada não pode apontar para evento', $q$
     INSERT INTO extracao (gmail_message_id, source_email, status, event_id)
     VALUES ('m12', 'sec@cin.ufpe.br', 'ignorado',
+            (SELECT id_event FROM events WHERE title = 'Evento J'))$q$,
+    'ck_extracao_evento_so_processado');
+SELECT pg_temp.deve_inserir('extração processada pela IA ligada ao evento que gerou', $q$
+    INSERT INTO extracao (gmail_message_id, source_email, status, event_id)
+    VALUES ('m14', 'sec@cin.ufpe.br', 'processado_ia',
+            (SELECT id_event FROM events WHERE title = 'Evento J'))$q$);
+SELECT pg_temp.deve_falhar('extração incompleta não pode apontar para evento', $q$
+    INSERT INTO extracao (gmail_message_id, source_email, status, event_id)
+    VALUES ('m15', 'sec@cin.ufpe.br', 'extracao_incompleta',
+            (SELECT id_event FROM events WHERE title = 'Evento J'))$q$,
+    'ck_extracao_evento_so_processado');
+SELECT pg_temp.deve_falhar('extração não processada não pode apontar para evento', $q$
+    INSERT INTO extracao (gmail_message_id, source_email, status, event_id)
+    VALUES ('m16', 'sec@cin.ufpe.br', 'nao_processado',
             (SELECT id_event FROM events WHERE title = 'Evento J'))$q$,
     'ck_extracao_evento_so_processado');
 SELECT pg_temp.deve_inserir('extração processada sem evento (evento já apagado)', $q$

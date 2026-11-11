@@ -71,7 +71,7 @@ CREATE TABLE extracao (
 	gmail_message_id	VARCHAR(64)		NOT NULL,
 	source_email		VARCHAR(255)	NOT NULL,
 	status				VARCHAR(20)		NOT NULL,
-	extracted_data		JSONB,
+	extracted_data		JSON,
 	error_message		VARCHAR(500),
 	event_id			INTEGER,
 	created_at			TIMESTAMPTZ		NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -84,10 +84,15 @@ CREATE TABLE extracao (
 		FOREIGN KEY (event_id) REFERENCES events(id_event) ON DELETE SET NULL,
 
 	CONSTRAINT ck_extracao_gmail_message_id_preenchido CHECK (btrim(gmail_message_id) <> ''),
-	CONSTRAINT ck_extracao_status CHECK (status IN ('processado', 'ignorado', 'erro')),
-	-- só e-mail processado gera evento; ignorado e erro nunca têm event_id
+	-- processado (parser) e processado_ia (Gemini) publicaram evento; ignorado, erro,
+	-- extracao_incompleta (validação recusou, US 4.4) e nao_processado (legado, US 4.2)
+	-- não. Os seis valores são os usados pelo extraction_service da develop.
+	CONSTRAINT ck_extracao_status
+		CHECK (status IN ('processado', 'processado_ia', 'ignorado', 'nao_processado',
+		                  'extracao_incompleta', 'erro')),
+	-- só extração que publicou evento (processado ou processado_ia) tem event_id
 	CONSTRAINT ck_extracao_evento_so_processado
-		CHECK (event_id IS NULL OR status = 'processado')
+		CHECK (event_id IS NULL OR status IN ('processado', 'processado_ia'))
 );
 
 CREATE TABLE favorito (

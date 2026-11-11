@@ -14,7 +14,7 @@ Como funciona
 2. Aplica ``database/001_schema.sql`` — as tabelas que o schema define
    (users, extractions, events) nascem com todas as restrições do banco.
 3. ``Base.metadata.create_all`` cria só o que o schema ainda não tem
-   (admins, extraction_logs, favorites). Tabelas que já existem são mantidas.
+   (admins). Tabelas que já existem são mantidas.
 4. Cada teste começa com as tabelas vazias (TRUNCATE ... RESTART IDENTITY).
 5. No fim, apaga o banco temporário. Nenhum outro banco do servidor é tocado.
 
@@ -79,7 +79,7 @@ def engine():
     with psycopg.connect(teste, autocommit=True) as conn:
         conn.execute(SCHEMA_SQL.read_text(encoding="utf-8"))
 
-    # 2) o que o schema ainda não cobre (admins, extraction_logs, favorites)
+    # 2) o que o schema ainda não cobre (admins)
     eng = create_engine(_url_do_banco(TEST_DB), pool_pre_ping=True)
     Base.metadata.create_all(bind=eng)
     try:

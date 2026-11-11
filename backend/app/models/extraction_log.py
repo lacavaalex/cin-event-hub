@@ -1,4 +1,7 @@
-"""Model ORM do log de extração de e-mails (tabela 'extraction_logs').
+"""Model ORM do log de extração de e-mails (tabela 'extracao').
+
+A tabela é criada pelo ``database/001_schema.sql``, que define as colunas, o
+UNIQUE de ``gmail_message_id``, o CHECK de ``status`` e a FK de ``event_id``.
 
 Entidade "LogDeExtração":
 id, e-mail de origem, status (processado/ignorado/erro), timestamp, dados extraídos.
@@ -18,7 +21,7 @@ from app.database import Base
 
 
 class ExtractionLog(Base):
-    __tablename__ = "extraction_logs"
+    __tablename__ = "extracao"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     gmail_message_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)

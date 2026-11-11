@@ -27,7 +27,7 @@ def run(db: Session = Depends(get_db)):
     """Executa um ciclo de extração de e-mails e insere eventos.
 
     Retorna quantos e-mails foram processados, ignorados (sem dados
-    obrigatórios) e com erro — espelhando os logs da tabela ``extraction_logs``.
+    obrigatórios) e com erro — espelhando os logs da tabela ``extracao``.
     Exige token JWT de administrador.
     """
     summary = run_extraction(db)
