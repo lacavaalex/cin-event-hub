@@ -17,7 +17,8 @@ apaga os bancos no final. Nenhum outro banco do servidor é alterado.
 Etapas: (1) aplica o 001_schema.sql e testa as 4 tabelas (usuario, extracao,
 events, favorito) com suas restrições, chaves estrangeiras e
 exclusões em cascata; (2) aplica o schema e o seed (20 eventos), testa o seed e
-repete os dois para provar que o seed não duplica nada.
+repete os dois para provar que o seed não duplica nada; (3) aplica também os
+seeds de usuários, extrações e favoritos, testa e repete.
 Código de saída: 0 = tudo passou, 1 = algum teste falhou, 2 = sem conexão.
 """
 
@@ -51,6 +52,18 @@ ETAPAS = [
         ("tests/002_seed_test.sql", "testar o seed"),
         ("002_seed_eventos.sql", "rodar o seed de novo"),
         ("tests/002_seed_test.sql", "testar de novo (nada pode duplicar)"),
+    ]),
+    ("Seeds de usuários, extrações e favoritos", "iesi_test_seeds", [
+        ("001_schema.sql", "aplicar o schema"),
+        ("002_seed_eventos.sql", "aplicar o seed de eventos"),
+        ("003_seed_usuarios.sql", "aplicar o seed de usuários"),
+        ("004_seed_extracoes.sql", "aplicar o seed de extrações"),
+        ("005_seed_favoritos.sql", "aplicar o seed de favoritos"),
+        ("tests/003_seeds_test.sql", "testar os seeds"),
+        ("003_seed_usuarios.sql", "rodar o seed de usuários de novo"),
+        ("004_seed_extracoes.sql", "rodar o seed de extrações de novo"),
+        ("005_seed_favoritos.sql", "rodar o seed de favoritos de novo"),
+        ("tests/003_seeds_test.sql", "testar de novo (nada pode duplicar)"),
     ]),
 ]
 
