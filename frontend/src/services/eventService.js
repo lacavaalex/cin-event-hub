@@ -82,3 +82,27 @@ MOCK_EVENTS.push(
     registration_link: 'https://example.com/encontro',
   }))
 );
+
+export const TYPE_FILTERS = [
+  { key: 'palestra', label: 'Palestra' },
+  { key: 'workshop', label: 'Workshop' },
+  { key: 'hackathon', label: 'Hackathon' },
+  { key: 'minicurso', label: 'Minicurso' },
+  { key: 'outros', label: 'Outros' },
+];
+
+// Converte o tipo vindo da API em uma chave de filtro ("Palestra" -> "palestra");
+// qualquer tipo desconhecido cai em "outros"
+export function typeKey(type) {
+  const slug = String(type ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+  return TYPE_FILTERS.some((t) => t.key === slug) ? slug : 'outros';
+}
+
+export function filterByType(events, key) {
+  if (!key) return events;
+  return events.filter((e) => typeKey(e.type) === key);
+}

@@ -180,3 +180,40 @@
 @media (prefers-reduced-motion: reduce) {
   .pagination-btn { transition: none; }
 }
+
+.type-outros { --type: var(--t-outros); }
+
+.home-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0 0 8px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: transparent;
+  border: 2px solid var(--type, var(--ink));
+  border-radius: 999px;
+  cursor: pointer;
+}
+.chip::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--type, var(--ink));
+}
+.chip[aria-pressed='true'] { background: var(--type, var(--ink)); color: var(--on-color); }
+.chip[aria-pressed='true']::before { background: var(--on-color); }
+
+.home-search-clear:disabled { opacity: 0.45; cursor: not-allowed; text-decoration: none; }
