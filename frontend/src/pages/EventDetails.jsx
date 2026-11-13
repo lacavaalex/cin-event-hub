@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { getEventById } from '../services/eventService';
 import '../styles/details.css';
+import AddToCalendarButton from '../components/AddToCalendarButton';
 
 const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 const DESC_LIMIT = 280;
@@ -111,6 +112,7 @@ export default function EventDetails() {
             ) : (
               <p className="details-nolink">Link de inscrição não informado</p>
             )}
+            <AddToCalendarButton event={event} url={link} />
           </aside>
         </article>
       )}

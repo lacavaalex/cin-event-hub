@@ -102,3 +102,23 @@
 @media (prefers-reduced-motion: reduce) {
   .details-cta { transition: none; }
 }
+
+.details-calendar {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px 20px;
+  font: inherit;
+  font-weight: 700;
+  color: var(--ink);
+  background: transparent;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 200ms, color 200ms;
+}
+.details-calendar:hover { background: var(--ink); color: var(--paper); }
+
+@media (prefers-reduced-motion: reduce) {
+  .details-calendar { transition: none; }
+}
