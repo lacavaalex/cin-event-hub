@@ -2,6 +2,7 @@
 
 POST /events                   → cria evento (US 2.1, protegida por JWT)
 GET  /events                   → lista eventos ativos (US 3.1, pública)
+GET  /events/admin             → lista todos os eventos (US 2.4, protegida por JWT)
 GET  /events/{id}              → busca evento por ID (US 2.2)
 PUT  /events/{id}              → edita evento (US 2.2, protegida por JWT)
 DELETE /events/{id}            → exclui evento (US 2.3, protegida por JWT)
@@ -19,6 +20,7 @@ from app.database import get_db
 from app.schemas.cleanup import CleanupReportSchema
 from app.schemas.event import EventCreate, EventRead
 from app.schemas.events.schemas import (
+    AdminEventRead,
     EventRead as EventReadAlb,
     EventUpdate,
     FavoriteStatus,
@@ -28,6 +30,7 @@ from app.services.events import service
 from app.services.events.cleanup_service import (
     FutureReferenceDateError,
     clean_expired_events,
+    is_event_expired,
 )
 
 router = APIRouter(prefix="/events", tags=["events"])
@@ -65,6 +68,28 @@ def create(payload: EventCreate, db: Session = Depends(get_db)):
 def list_all(db: Session = Depends(get_db)):
     """Lista todos os eventos ativos. Rota pública."""
     return list_events(db)
+
+
+# -- Listagem administrativa (US 2.4) --
+
+@router.get(
+    "/admin",
+    response_model=list[AdminEventRead],
+    dependencies=[Depends(get_current_admin)],
+)
+def list_admin(db: Session = Depends(get_db)):
+    """Lista todos os eventos para o painel administrativo (US 2.4).
+
+    Inclui eventos vencidos que ainda não foram removidos pela limpeza
+    (US 5.1/5.2) e sinaliza cada um com ``is_expired``. Requer JWT de admin.
+    """
+    events = service.list_admin_events(db)
+    return [
+        AdminEventRead.model_validate(event).model_copy(
+            update={"is_expired": is_event_expired(event)}
+        )
+        for event in events
+    ]
 
 
 # -- Favoritos (US 6.1) --

@@ -47,6 +47,13 @@ class EventRead(BaseModel):
     status: str
     origin: str
 
+
+class AdminEventRead(EventRead):
+    """Evento na listagem administrativa, com indicação de expiração (US 2.4)."""
+
+    is_expired: bool = False
+
+
 class FavoriteStatus(BaseModel):
     """Estado atual do favorito de um usuário para um evento."""
 
