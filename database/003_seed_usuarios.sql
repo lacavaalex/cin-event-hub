@@ -5,9 +5,10 @@
 -- Execução: psql -U <usuario> -d <banco> -v ON_ERROR_STOP=1 -f database/003_seed_usuarios.sql
 --
 -- Os hashes de senha são FICTÍCIOS (têm o formato do bcrypt, mas não vêm de
--- nenhuma senha): ninguém consegue fazer login com estes usuários. Além disso, o
--- login do backend lê a tabela admins, não esta. Para testar login, gere um hash
--- bcrypt de verdade.
+-- nenhuma senha): ninguém consegue fazer login com estes usuários. O login do
+-- backend lê esta tabela (só usuários com is_admin = TRUE entram); para testar,
+-- use o admin seed criado pelo backend (ADMIN_EMAIL/ADMIN_PASSWORD no .env) ou
+-- gere um hash bcrypt de verdade.
 -- Os e-mails usam o domínio example.com para não coincidir com contas reais.
 -- dt_cadastro é relativa ao dia da execução (CURRENT_DATE - N dias).
 -- Pode rodar mais de uma vez: um usuário cujo e-mail já existe não é inserido de novo.

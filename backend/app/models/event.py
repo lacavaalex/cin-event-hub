@@ -10,7 +10,7 @@ event_location). Assim o banco pode ter seus nomes sem mudar o código do backen
 
 import datetime as dt
 
-from sqlalchemy import Date, DateTime, String, Text, Time, func
+from sqlalchemy import Date, DateTime, ForeignKey, String, Text, Time, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -20,6 +20,12 @@ class Event(Base):
     __tablename__ = "events"
 
     id: Mapped[int] = mapped_column("id_event", primary_key=True)
+    # Relacionamento "cadastra" do EER: o administrador que cadastrou o evento é
+    # um ``usuario`` com is_admin (não há tabela própria de admin). Nulo para
+    # eventos extraídos de e-mail; apagar o usuário mantém o evento (SET NULL).
+    admin_id: Mapped[int | None] = mapped_column(
+        ForeignKey("usuario.id_usuario", ondelete="SET NULL"), nullable=True
+    )
     title: Mapped[str] = mapped_column(String(200))
     description: Mapped[str] = mapped_column(Text)
     date: Mapped[dt.date] = mapped_column("int_event_date", Date)

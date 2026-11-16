@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_admin
 from app.database import get_db
+from app.models.user import User
 from app.schemas.event import EventCreate, EventPage, EventRead
 from app.schemas.events.schemas import (
     EventRead as EventReadAlb,
@@ -43,12 +44,18 @@ def get_current_user_id(x_user_id: int = Header(..., alias="X-User-Id")) -> int:
     "",
     response_model=EventRead,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(get_current_admin)],
 )
-def create(payload: EventCreate, db: Session = Depends(get_db)):
-    """Cria um novo evento (US 2.1). Requer JWT."""
+def create(
+    payload: EventCreate,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin),
+):
+    """Cria um novo evento (US 2.1). Requer JWT de um usuário administrador.
+
+    O evento fica vinculado ao administrador que o cadastrou (``events.admin_id``).
+    """
     try:
-        event = create_event(db, payload)
+        event = create_event(db, payload, admin_id=admin.id)
     except PastEventDateError:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

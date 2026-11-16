@@ -34,8 +34,11 @@ class PastEventDateError(Exception):
     """Tentativa de criar evento com data no passado."""
 
 
-def create_event(db: Session, payload: EventCreate) -> Event:
+def create_event(db: Session, payload: EventCreate, admin_id: int | None = None) -> Event:
     """Cria um novo evento validando as regras de negócio.
+
+    ``admin_id`` é o ``usuario.id_usuario`` do administrador autenticado que
+    cadastrou o evento (relacionamento "cadastra" do EER).
 
     Cenários cobertos (Gherkin da US 2.1):
     - Criar evento com sucesso → persiste e retorna o evento
@@ -56,6 +59,7 @@ def create_event(db: Session, payload: EventCreate) -> Event:
         registration_link=str(payload.registration_link),
         status="active",
         origin="manual",
+        admin_id=admin_id,
     )
     return event_repository.create(db, event)
 

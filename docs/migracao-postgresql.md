@@ -79,8 +79,8 @@ O código dos repositórios, serviços e rotas **não muda**.
 
 **Decisão:** o `database/001_schema.sql` é o dono de `usuario`, `extracao`, `events`,
 `favorito` e `email_associado`. O `create_all` continua no `lifespan` do `main.py`, mas
-só completa o que o SQL ainda não tem (`admins` e `extraction_logs`), porque o
-SQLAlchemy não recria tabelas que já existem.
+só completa o que o SQL ainda não tem, porque o SQLAlchemy não recria tabelas que já
+existem. (A tabela `admins` foi removida: veja 5.3.)
 
 | | SQL cria (adotado) | `create_all` cria |
 |---|---|---|
@@ -88,9 +88,9 @@ SQLAlchemy não recria tabelas que já existem.
 | Backend independente do script | Não: precisa rodar o SQL antes da primeira subida | Sim |
 | Risco | Subir o backend antes do SQL cria tabelas sem regras (e o SQL falha com "já existe") | Regras duplicadas em dois lugares, tendendo a divergir |
 
-Por que não remover o `create_all`: `admins` e `extraction_logs` são de outras tarefas
-e não estão no SQL. Quando entrarem (ou forem substituídas por `usuario`/`extracao`), o
-`create_all` pode sair.
+Por que não remover o `create_all`: ele é a rede de segurança para tabelas de outras
+tarefas que ainda não entraram no SQL. Quando todas estiverem no SQL, o `create_all`
+pode sair.
 
 ### 5.2 Nomes do banco diferentes dos do backend
 
@@ -103,10 +103,22 @@ preferir renomear o banco, basta remover os primeiros argumentos dos `mapped_col
 
 ### 5.3 Model `User` e `Favorite`
 
-`User` é só um espelho de `usuario` (sem ele o backend não sobe, item 1). `Favorite`
-perdeu `id` e `created_at` porque a tabela `favorito` não os tem; nenhum código usava
-esses campos. Observação para o time: hoje coexistem `admins` (autenticação atual) e
-`usuario` (modelo relacional).
+`User` mapeia `usuario`. `Favorite` perdeu `id` e `created_at` porque a tabela
+`favorito` não os tem; nenhum código usava esses campos.
+
+**Refatoração US 1.1/1.2 (entidade Usuário segundo o EER):** a entidade própria de
+administrador (`Admin` / tabela `admins`) foi **removida**. Pelo diagrama EER, o
+administrador é um `USUARIO` com `is_admin = TRUE`:
+
+- login (`POST /auth/login`) busca em `usuario` e exige `is_admin` (usuário comum → 403);
+- `get_current_admin` confere no banco se o dono do token ainda é admin;
+- o admin seed do `main.py` é gravado em `usuario` (`ADMIN_NAME` e `ADMIN_PROFILE_NAME`
+  no `.env`, pois `nome` e `nome_perfil` são obrigatórios);
+- `Event.admin_id` mapeia o relacionamento *cadastra* (`events.admin_id` →
+  `usuario.id_usuario`, `ON DELETE SET NULL`) e é preenchido no `POST /events`.
+
+Em banco de desenvolvimento antigo, a tabela órfã pode ser apagada:
+`DROP TABLE IF EXISTS admins;`
 
 ### 5.4 Regra do link de inscrição
 
@@ -132,10 +144,11 @@ removido. Quem ainda tiver `eventos.db` local pode apagá-lo.
 
 ## 6. Pendências que não são desta migração (para o time decidir)
 
-- `usuario` (modelo relacional) × `admins` (autenticação atual).
+- ~~`usuario` (modelo relacional) × `admins` (autenticação atual).~~ Resolvido na
+  refatoração US 1.1/1.2: só existe `usuario` (veja 5.3).
 - `extracao` (SQL) × `extraction_logs` (backend, US 4.1): nomes e colunas diferentes;
   o backend usa `extraction_logs` e a tabela `extracao` fica sem uso por enquanto.
-- `admins` e `extraction_logs` ainda dependem do `create_all`.
+- `extraction_logs` ainda depende do `create_all`.
 - `int_event_date` / `int_event_time` (início do evento): o `int_` provavelmente é
   `init_`; vale conferir o nome antes de congelar o schema.
 - `Security.py` e `security.py` coexistem em `backend/app/core` (quebra no Windows/macOS).

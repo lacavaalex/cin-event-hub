@@ -5,8 +5,8 @@ O schema oficial (``database/001_schema.sql``) é aplicado no banco de testes pe
 realmente tem. Se alguém renomear uma coluna num lado e esquecer do outro, estes
 testes falham antes da aplicação quebrar em produção.
 
-``Admin`` fica de fora de propósito: a tabela ``admins`` não faz parte do schema SQL
-ainda (é criada pelo ``create_all``) e será tratada junto com o Event/Admin.
+Não há model ``Admin``: pelo modelo EER o administrador é um ``usuario`` com
+``is_admin = TRUE``, então ``User`` cobre os dois papéis.
 """
 
 import pytest

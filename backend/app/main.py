@@ -2,7 +2,7 @@
 
 Ao iniciar:
 1. Cria no PostgreSQL as tabelas que ainda não existirem (as de database/001_schema.sql já vêm prontas).
-2. Gera o admin seed se a tabela estiver vazia (credenciais no .env).
+2. Gera o admin seed (usuario com is_admin = TRUE) se ainda não existir (credenciais no .env).
 3. Registra os routers de autenticação e eventos.
 """
 
@@ -14,29 +14,44 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.auth.router import router as auth_router
 from app.api.eventos.router import router as events_router
 from app.api.extracao.router import router as extraction_router
-from app.core.config import ADMIN_EMAIL, ADMIN_PASSWORD
+from app.core.config import ADMIN_EMAIL, ADMIN_NAME, ADMIN_PASSWORD, ADMIN_PROFILE_NAME
 from app.core.security import hash_password
 from app.database.database import Base, SessionLocal, engine
-from app.models.admin import Admin  # noqa: F401 — registra o model no metadata
 from app.models.event import Event  # noqa: F401 — registra o model no metadata
-from app.models.user import User  # noqa: F401 — registra o model no metadata (FK de favorites)
+from app.models.user import User  # noqa: F401 — registra o model no metadata (usuario/admin, FK de favorito e events)
 from app.models.extraction_log import ExtractionLog  # noqa: F401 — registra o model no metadata
 from app.models.events.models import Favorite  # noqa: F401 — registra o model no metadata
-from app.repositories import admin_repository
+from app.repositories import user_repository
 from app.services.extracao_email.scheduler import shutdown_scheduler, start_scheduler
 
 
 def _seed_admin() -> None:
-    """Cria o administrador inicial se não houver nenhum cadastrado."""
+    """Cria o administrador inicial na tabela ``usuario`` (is_admin = TRUE).
+
+    Modelo EER: administrador não é uma entidade própria, é um USUARIO com a
+    flag ``is_admin``. Se já existir um usuário com o e-mail configurado, nada é
+    alterado (um usuário comum não é promovido automaticamente).
+    """
     db = SessionLocal()
     try:
-        existing = admin_repository.get_by_email(db, ADMIN_EMAIL)
+        existing = user_repository.get_by_email(db, ADMIN_EMAIL)
         if existing is None:
-            hashed = hash_password(ADMIN_PASSWORD)
-            admin_repository.create(db, ADMIN_EMAIL, hashed)
+            user_repository.create(
+                db,
+                name=ADMIN_NAME,
+                email=ADMIN_EMAIL,
+                hashed_password=hash_password(ADMIN_PASSWORD),
+                profile_name=ADMIN_PROFILE_NAME,
+                is_admin=True,
+            )
             print(f"✅ Admin seed criado: {ADMIN_EMAIL}")
-        else:
+        elif existing.is_admin:
             print(f"ℹ️  Admin já existe: {ADMIN_EMAIL}")
+        else:
+            print(
+                f"⚠️  {ADMIN_EMAIL} já existe como usuário comum (is_admin = FALSE); "
+                "não foi promovido a administrador."
+            )
     finally:
         db.close()
 
@@ -44,8 +59,8 @@ def _seed_admin() -> None:
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     """Lifecycle hook: cria tabelas e seed antes de aceitar requisições."""
-    # checkfirst (padrão): não recria nem altera users/extractions/events, que
-    # nascem do database/001_schema.sql com todas as restrições do banco.
+    # checkfirst (padrão): não recria nem altera usuario/events/extracao/favorito,
+    # que nascem do database/001_schema.sql com todas as restrições do banco.
     Base.metadata.create_all(bind=engine)
     _seed_admin()
     start_scheduler()

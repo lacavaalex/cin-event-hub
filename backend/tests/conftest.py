@@ -12,9 +12,10 @@ Como funciona
 1. Uma vez por execução do pytest, cria o banco temporário ``iesi_test_backend``
    (apaga se sobrou de uma execução anterior).
 2. Aplica ``database/001_schema.sql`` — as tabelas que o schema define
-   (users, extractions, events) nascem com todas as restrições do banco.
-3. ``Base.metadata.create_all`` cria só o que o schema ainda não tem
-   (admins). Tabelas que já existem são mantidas.
+   (usuario, events, extracao, favorito) nascem com todas as restrições do banco.
+3. ``Base.metadata.create_all`` cria só o que o schema ainda não tem.
+   Tabelas que já existem são mantidas. (A antiga tabela ``admins`` deixou de
+   existir: administrador é um ``usuario`` com ``is_admin = TRUE``.)
 4. Cada teste começa com as tabelas vazias (TRUNCATE ... RESTART IDENTITY).
 5. No fim, apaga o banco temporário. Nenhum outro banco do servidor é tocado.
 
@@ -36,7 +37,6 @@ from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
 # Os models são importados para serem registrados no Base.metadata.
-from app.models.admin import Admin  # noqa: F401
 from app.models.event import Event  # noqa: F401
 from app.models.events.models import Favorite  # noqa: F401
 from app.models.extraction_log import ExtractionLog  # noqa: F401
@@ -79,7 +79,7 @@ def engine():
     with psycopg.connect(teste, autocommit=True) as conn:
         conn.execute(SCHEMA_SQL.read_text(encoding="utf-8"))
 
-    # 2) o que o schema ainda não cobre (admins)
+    # 2) o que o schema ainda não cobre (hoje nada: todos os models mapeiam o SQL)
     eng = create_engine(_url_do_banco(TEST_DB), pool_pre_ping=True)
     Base.metadata.create_all(bind=eng)
     try:

@@ -20,8 +20,12 @@ JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
 JWT_EXPIRE_MINUTES: int = int(os.getenv("JWT_EXPIRE_MINUTES", "60"))
 
 # ── Admin seed ──────────────────────────────────────────────────────
+# O administrador inicial é um registro da tabela ``usuario`` com is_admin = TRUE
+# (modelo EER: não existe entidade/tabela própria de admin).
 ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "admin@cin.ufpe.br")
 ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "123456")
+ADMIN_NAME: str = os.getenv("ADMIN_NAME", "Administrador")
+ADMIN_PROFILE_NAME: str = os.getenv("ADMIN_PROFILE_NAME", "admin")
 
 # ── Extração de e-mails ────────────────────────────────────
 EXTRACTION_ENABLED: bool = os.getenv("EXTRACTION_ENABLED", "true").lower() in {
