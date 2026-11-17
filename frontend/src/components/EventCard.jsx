@@ -12,14 +12,14 @@ export default function EventCard({ event, index = 0 }) {
   const [year, month, day] = event.date.split('-');
 
   return (
-    <article className={`event-card type-${typeSlug(event.type)}`} style={{ '--i': index }}>
+    <article className={`event-card type-${typeSlug(event.event_type ?? event.type)}`} style={{ '--i': index }}>
       <time className="event-date" dateTime={event.date}>
         <span className="event-day">{day}</span>
         <span className="event-month">{MONTHS[Number(month) - 1]}</span>
         <span className="event-year">{year}</span>
       </time>
       <div className="event-body">
-        <span className="event-type">{event.type}</span>
+        <span className="event-type">{event.event_type ?? event.type}</span>
             <Link to={`/eventos/${event.id}`}>{event.title}</Link>
         <h3 className="event-title">{event.title}</h3>
         <p className="event-meta">{event.time.slice(0, 5)}</p>
