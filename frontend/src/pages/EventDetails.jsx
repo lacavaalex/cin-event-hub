@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { getEventById } from '../services/eventService';
 import '../styles/details.css';
+import AddToCalendarButton from '../components/AddToCalendarButton';
 
 const MONTHS = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 const DESC_LIMIT = 280;
@@ -88,7 +89,7 @@ export default function EventDetails() {
       {status === 'success' && (
         <article className="details-grid">
           <div>
-            <span className="details-type">{event.type}</span>
+            <span className="details-type">{event.event_type ?? event.type}</span>
             <h1 className="details-title">{event.title}</h1>
             <Description key={event.id} text={event.description || 'Sem descrição informada.'} />
           </div>
@@ -102,7 +103,7 @@ export default function EventDetails() {
               <dt>Local</dt>
               <dd>{event.location}</dd>
               <dt>Tipo</dt>
-              <dd>{event.type}</dd>
+              <dd>{event.event_type ?? event.type}</dd>
             </dl>
             {link ? (
               <a className="details-cta" href={link} target="_blank" rel="noopener noreferrer">
@@ -111,6 +112,7 @@ export default function EventDetails() {
             ) : (
               <p className="details-nolink">Link de inscrição não informado</p>
             )}
+            <AddToCalendarButton event={event} url={link} />
           </aside>
         </article>
       )}

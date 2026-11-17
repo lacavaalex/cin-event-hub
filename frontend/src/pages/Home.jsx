@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import EventCard from '../components/EventCard';
 import Pagination from '../components/Pagination';
-import { filterByKeyword, getEvents, sortByDate } from '../services/eventService';
+import {
+  TYPE_FILTERS,
+  filterByKeyword,
+  filterByType,
+  getEvents,
+  sortByDate,
+} from '../services/eventService';
 import '../styles/home.css';
 
 const PAGE_SIZE = 20;
@@ -10,6 +16,7 @@ export default function Home() {
   const [state, setState] = useState({ status: 'loading', events: [] });
   const [attempt, setAttempt] = useState(0);
   const [query, setQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
   const [page, setPage] = useState(1);
   const listRef = useRef(null);
 
@@ -28,9 +35,20 @@ export default function Home() {
     setAttempt((a) => a + 1);
   }
 
-  // Mudar a busca sempre volta para a página 1
+  // Qualquer mudança de busca ou filtro volta para a página 1
   function handleSearch(value) {
     setQuery(value);
+    setPage(1);
+  }
+
+  function handleType(key) {
+    setTypeFilter(key);
+    setPage(1);
+  }
+
+  function clearFilters() {
+    setQuery('');
+    setTypeFilter('');
     setPage(1);
   }
 
@@ -40,8 +58,12 @@ export default function Home() {
   }
 
   const { status, events } = state;
-  const visible = useMemo(() => filterByKeyword(events, query), [events, query]);
+  const visible = useMemo(
+    () => filterByType(filterByKeyword(events, query), typeFilter),
+    [events, query, typeFilter]
+  );
   const hasQuery = query.trim() !== '';
+  const hasFilters = hasQuery || typeFilter !== '';
 
   const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
   const currentPage = Math.min(page, totalPages);
@@ -79,6 +101,36 @@ export default function Home() {
             Limpar busca
           </button>
         )}
+      </div>
+
+      <div className="home-filters" role="group" aria-label="Filtrar por tipo">
+        <button
+          type="button"
+          className="chip chip-all"
+          aria-pressed={typeFilter === ''}
+          onClick={() => handleType('')}
+        >
+          Todos
+        </button>
+        {TYPE_FILTERS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            className={`chip type-${t.key}`}
+            aria-pressed={typeFilter === t.key}
+            onClick={() => handleType(t.key)}
+          >
+            {t.label}
+          </button>
+        ))}
+        <button
+          type="button"
+          className="home-search-clear"
+          onClick={clearFilters}
+          disabled={!hasFilters}
+        >
+          Limpar Filtros
+        </button>
       </div>
 
       {status === 'loading' && <p role="status">Carregando eventos...</p>}
