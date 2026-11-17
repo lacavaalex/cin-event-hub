@@ -55,8 +55,8 @@
 }
 .event-card:hover { transform: translateY(-2px); box-shadow: 6px 6px 0 var(--ink); }
 .type-palestra { --type: var(--t-palestra); }
-.type-workshop { --type: var(--t-workshop); }
-.type-hackathon { --type: var(--t-hackathon); }
+.type-workshop { --type: var(--t-workshop); --on-type: var(--ink); }
+.type-hackathon { --type: var(--t-hackathon); --on-type: var(--ink); }
 .type-minicurso { --type: var(--t-minicurso); }
 
 .event-date {
@@ -213,7 +213,7 @@
   border-radius: 50%;
   background: var(--type, var(--ink));
 }
-.chip[aria-pressed='true'] { background: var(--type, var(--ink)); color: var(--on-color); }
-.chip[aria-pressed='true']::before { background: var(--on-color); }
+.chip[aria-pressed='true'] { background: var(--type, var(--ink)); color: var(--on-type, var(--on-color)); }
+.chip[aria-pressed='true']::before { background: var(--on-type, var(--on-color)); }
 
 .home-search-clear:disabled { opacity: 0.45; cursor: not-allowed; text-decoration: none; }

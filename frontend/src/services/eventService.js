@@ -104,5 +104,5 @@ export function typeKey(type) {
 
 export function filterByType(events, key) {
   if (!key) return events;
-  return events.filter((e) => typeKey(e.type) === key);
+  return events.filter((e) => typeKey(e.event_type ?? e.type) === key);
 }

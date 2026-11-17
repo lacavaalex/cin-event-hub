@@ -102,5 +102,5 @@ export function downloadIcs(event, options) {
   document.body.appendChild(link);
   link.click();
   link.remove();
-  setTimeout(() => URL.revokeObjectURL(href), 0);
+  setTimeout(() => URL.revokeObjectURL(href), 1000);
 }
