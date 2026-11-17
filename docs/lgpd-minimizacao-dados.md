@@ -26,7 +26,7 @@
 | `backend/tests/test_minimizacao_lgpd.py` | **Novo.** 33 testes, sem depender de recurso de um banco específico (rodam em SQLite e em PostgreSQL) |
 | `docs/lgpd-minimizacao-dados.md`, `docs/refatoracao-banco.md` | documentação |
 
-Não há mudança de schema, de coluna, de rota nem de contrato da API (`source_email` continua string).
+Não há mudança de schema, de coluna, de rota ou de tipo da API (`source_email` continua `string`), mas há **mudança semântica**: `source_email` passa a conter somente o domínio do remetente, não o endereço completo. Consumidores de `GET /extraction/alerts` devem ser avisados.
 
 ### Máscaras
 
@@ -72,9 +72,26 @@ WHERE source_email LIKE '%@%';
 UPDATE extraction_logs
 SET error_message = regexp_replace(error_message, '[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+', '[e-mail]', 'g')
 WHERE error_message LIKE '%@%';
+
+-- e-mails, CPF e telefone dentro de extracted_data (preserva o tipo JSON)
+UPDATE extraction_logs
+SET extracted_data = regexp_replace(
+      regexp_replace(
+        regexp_replace(
+          extracted_data::text,
+          '[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+',
+          '[e-mail]', 'g'
+        ),
+        '(?<!\d)\d{3}\.?\d{3}\.?\d{3}-?\d{2}(?!\d)',
+        '[cpf]', 'g'
+      ),
+      '(?:\+55[\s.\-]?)?\(\d{2}\)[\s.\-]?\d{4,5}[\s.\-]?\d{4}(?!\d)|\+55[\s.\-]?\d{2}[\s.\-]?9?\d{4}[\s.\-]?\d{4}(?!\d)|(?<![\d\-])(?:\d{2}[\s.\-])?9\d{4}[\s.\-]?\d{4}(?!\d)',
+      '[telefone]', 'g'
+    )::json
+WHERE extracted_data IS NOT NULL;
 ```
 
-Só e-mails são tratados nos registros antigos; telefone e CPF em `extracted_data` antigo exigiriam revisão manual.
+Faça backup antes de executar e valide em staging: as regex replicam `minimizacao.py` e são idempotentes. O `UPDATE` de `extracted_data` reconverte o texto com `::json` para preservar o tipo da coluna.
 
 ## 6. Testes
 
