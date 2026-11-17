@@ -13,6 +13,9 @@ const MOCK_EVENTS = [
   { id: 6, title: 'Workshop de UX para Devs', description: 'Pesquisa e prototipação.', date: '2026-12-02', time: '15:00', location: 'Sala A215', type: 'Workshop', registration_link: 'https://example.com/ux' },
 ];
 
+// Local (não commitado): o backend manda event_type, o front lê type.
+const normalize = (e) => ({ ...e, type: e.type ?? e.event_type ?? '' });
+
 export function sortByDate(events) {
   return [...events].sort((a, b) =>
     `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`)
@@ -34,7 +37,7 @@ export async function getEvents() {
   const data = await res.json();
   // GET /events agora é paginado ({ items, page, total_pages }, IESI-70). A Home
   // ainda mostra só a primeira página até a paginação do front (IESI-72).
-  return Array.isArray(data) ? data : data.items;
+  return (Array.isArray(data) ? data : data.items).map(normalize);
 }
 
 export async function getEventById(id) {
@@ -52,5 +55,5 @@ export async function getEventById(id) {
   }
   if (res.status === 404) throw new Error('NOT_FOUND');
   if (!res.ok) throw new Error('Não foi possível carregar o evento.');
-  return res.json();
+  return normalize(await res.json());
 }
