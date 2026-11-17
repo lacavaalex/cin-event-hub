@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
-export default function LogoutButton() {
+export default function LogoutButton({ className = '' }) {
   const { logout } = useAuth();
   const navigate = useNavigate();
 
@@ -11,7 +11,7 @@ export default function LogoutButton() {
   }
 
   return (
-    <button type="button" onClick={handleLogout}>
+    <button type="button" onClick={handleLogout} className={className || undefined}>
       Sair
     </button>
   );

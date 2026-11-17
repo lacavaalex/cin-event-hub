@@ -30,6 +30,16 @@ function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+export const getAdminEvents = (signal) =>
+  request("/events/admin", { signal, headers: authHeaders() });
+
+export const createEvent = (payload) =>
+  request("/events", {
+    method: "POST",
+    body: JSON.stringify(payload),
+    headers: authHeaders(),
+  });
+
 export const updateEvent = (id, payload) =>
   request(`/events/${id}`, {
     method: "PUT",

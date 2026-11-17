@@ -1,0 +1,102 @@
+.admin-shell {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  min-height: 100vh;
+  background: #f7f5f0;
+}
+
+.admin-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding: 24px 16px;
+  background: #111;
+  color: #fff;
+}
+
+.admin-brand-kicker {
+  margin: 0 0 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #a1a1aa;
+}
+
+.admin-brand-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.admin-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-nav-link {
+  display: block;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #d4d4d8;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.admin-nav-link:hover {
+  background: #27272a;
+  color: #fff;
+}
+
+.admin-nav-link.active {
+  background: var(--red);
+  color: #fff;
+}
+
+.admin-nav-button {
+  font-family: inherit;
+}
+
+.admin-sidebar :focus-visible {
+  outline: 3px solid var(--red);
+  outline-offset: 2px;
+}
+
+.admin-content {
+  min-width: 0;
+  padding: 32px;
+}
+
+@media (max-width: 760px) {
+  .admin-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-sidebar {
+    gap: 16px;
+    padding: 16px;
+  }
+
+  .admin-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .admin-nav-link {
+    width: auto;
+  }
+
+  .admin-content {
+    padding: 20px 16px 40px;
+  }
+}

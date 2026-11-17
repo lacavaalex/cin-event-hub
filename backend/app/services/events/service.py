@@ -43,6 +43,15 @@ def list_events(db: Session) -> list[Event]:
     return repository.list_active(db)
 
 
+def list_admin_events(db: Session) -> list[Event]:
+    """Lista todos os eventos para o painel administrativo (US 2.4).
+
+    Diferente da listagem pública, inclui eventos vencidos que ainda não foram
+    removidos pela rotina de limpeza da US 5.1/5.2.
+    """
+    return repository.list_all(db)
+
+
 def favorite_event(db: Session, user_id: int, event_id: int) -> FavoriteStatus:
     """Favorita um evento para o usuário de forma idempotente."""
     if repository.get_by_id(db, event_id) is None:
