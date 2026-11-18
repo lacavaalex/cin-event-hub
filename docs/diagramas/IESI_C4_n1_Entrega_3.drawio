@@ -1,0 +1,42 @@
+<mxfile host="app.diagrams.net" modified="2026-09-21" agent="1.0" type="device">
+  <diagram id="entrega3-c4-context" name="Diagrama C4 Nível 1 - Contexto">
+    <mxGraphModel dx="1100" dy="660" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1120" pageHeight="560" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <mxCell id="sys" value="Sistema Integrador de Eventos Acadêmicos&#10;&lt;small&gt;Sistema a ser construído — Entrega 3&lt;/small&gt;" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#0a6da1;fontColor=#0a6da1;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="400" y="205" width="310" height="150" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="aluno" value="Aluno&#10;&lt;small&gt;consulta eventos, filtra por categoria e favorita&lt;/small&gt;" style="shape=mxgraph.c4.person;whiteSpace=wrap;html=1;fillColor=#43809a;strokeColor=#43809a;fontColor=#ffffff;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="120" y="170" width="140" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="curador" value="Curador / Administrador&#10;&lt;small&gt;revisa e aprova e-mails extraídos no painel&lt;/small&gt;" style="shape=mxgraph.c4.person;whiteSpace=wrap;html=1;fillColor=#43809a;strokeColor=#43809a;fontColor=#ffffff;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="120" y="340" width="140" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="gmail" value="Gmail&#10;&lt;small&gt;caixa de entrada institucional — comunicados acadêmicos&lt;/small&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="800" y="130" width="190" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="gemini" value="Gemini&#10;&lt;small&gt;modelo de IA — filtragem de e-mails e geração de eventos&lt;/small&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontColor=#333333;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="800" y="340" width="190" height="80" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="a1" value="consulta eventos, filtra e favorita&#10;[HTTPS / REST]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=10;" edge="1" parent="1" source="aluno" target="sys">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="a2" value="revisa e aprova eventos curados&#10;[HTTPS / REST]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=10;" edge="1" parent="1" source="curador" target="sys">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="a3" value="lê comunicados da caixa institucional&#10;[OAuth 2.0]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=10;" edge="1" parent="1" source="sys" target="gmail">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="a4" value="envia e-mails não estruturados e recebe eventos criados&#10;[HTTPS]" style="edgeStyle=orthogonalEdgeStyle;rounded=0;html=1;endArrow=open;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=10;" edge="1" parent="1" source="sys" target="gemini">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
