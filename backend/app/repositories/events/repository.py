@@ -15,6 +15,11 @@ def list_active(db: Session) -> list[Event]:
     return db.query(Event).filter(Event.status == "active").all()
 
 
+def list_all(db: Session) -> list[Event]:
+    """Lista todos os eventos cadastrados, inclusive os já expirados (US 2.4)."""
+    return db.query(Event).order_by(Event.date, Event.time, Event.id).all()
+
+
 def get_by_id(db: Session, event_id: int) -> Event | None:
     return db.get(Event, event_id)
 

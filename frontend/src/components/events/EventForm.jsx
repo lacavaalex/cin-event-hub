@@ -46,6 +46,7 @@ export default function EventForm({
   onCancel,
   isSubmitting = false,
   serverErrors = {},
+  submitLabel = "Salvar alterações",
 }) {
   const [values, setValues] = useState(initialValues);
   const [clientErrors, setClientErrors] = useState({});
@@ -117,7 +118,7 @@ export default function EventForm({
         <button type="submit" disabled={isSubmitting}
           className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white
                      hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed">
-          {isSubmitting ? "Salvando…" : "Salvar alterações"}
+          {isSubmitting ? "Salvando…" : submitLabel}
         </button>
         {/* type="button" é essencial: sem ele, o botão dentro do <form> dispararia o submit. */}
         <button type="button" onClick={onCancel} disabled={isSubmitting}

@@ -1,0 +1,211 @@
+.admin-page {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.admin-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.admin-title {
+  margin: 0;
+  color: var(--red);
+  font-size: 2rem;
+  line-height: 1.1;
+}
+
+.admin-page > .admin-title {
+  margin-bottom: 20px;
+}
+
+.admin-subtitle {
+  margin: 6px 0 0;
+  color: #52525b;
+  font-weight: 600;
+}
+
+.admin-primary-button,
+.admin-secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 14px;
+  border-radius: 6px;
+  font: inherit;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.admin-primary-button {
+  border: 2px solid var(--red);
+  background: var(--red);
+  color: #fff;
+}
+
+.admin-primary-button:hover {
+  border-color: var(--red-dark);
+  background: var(--red-dark);
+}
+
+.admin-secondary-button {
+  border: 1px solid #d4d4d8;
+  background: #fff;
+  color: #27272a;
+}
+
+.admin-secondary-button:hover {
+  background: #f4f4f5;
+}
+
+.admin-flash {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border: 1px solid #86efac;
+  border-radius: 6px;
+  background: #f0fdf4;
+  color: #166534;
+}
+
+.admin-loading {
+  color: #52525b;
+}
+
+.admin-error {
+  padding: 16px;
+  border: 1px solid #fca5a5;
+  border-radius: 6px;
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.admin-error p {
+  margin: 0 0 12px;
+}
+
+.admin-empty {
+  padding: 48px 24px;
+  border: 1px dashed #a1a1aa;
+  border-radius: 8px;
+  background: #fff;
+  text-align: center;
+}
+
+.admin-empty p {
+  margin: 0 0 16px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #52525b;
+}
+
+.admin-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.admin-table {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: collapse;
+}
+
+.admin-table th,
+.admin-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #e4e4e7;
+  text-align: left;
+  vertical-align: top;
+}
+
+.admin-table th {
+  background: #fafafa;
+  color: #3f3f46;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.admin-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.admin-table tbody tr:hover {
+  background: #fafafa;
+}
+
+.admin-time {
+  display: block;
+  margin-top: 4px;
+  color: #71717a;
+  font-size: 0.875rem;
+}
+
+.admin-status {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.admin-status--active {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.admin-status--expired {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.admin-status--inactive {
+  background: #f4f4f5;
+  color: #52525b;
+}
+
+.admin-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-row-actions button {
+  padding: 9px 14px;
+  border: 1px solid #fca5a5;
+  border-radius: 6px;
+  background: #fff;
+  color: #b91c1c;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-row-actions button:hover {
+  background: #fef2f2;
+}
+
+.admin-placeholder {
+  padding: 32px;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  background: #fff;
+  color: #52525b;
+}
+
+.admin-form-error {
+  margin: 0 0 16px;
+  color: #b91c1c;
+}
+
+.admin-page :focus-visible {
+  outline: 3px solid var(--red);
+  outline-offset: 2px;
+}

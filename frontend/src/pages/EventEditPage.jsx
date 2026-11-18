@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import EventForm from "../components/events/EventForm";
 import { ApiError, getEvent, toFieldErrors, updateEvent } from "../services/eventsApi";
+import '../styles/admin.css';
 
 // Rota da listagem de eventos do admin. Ajustar para a rota real do projeto.
 const EVENTS_LIST_PATH = "/admin/events";
@@ -23,28 +24,31 @@ export default function EventEditPage() {
   const { id } = useParams();
   const navigate = useNavigate();
 
-  const [event, setEvent] = useState(null);
-  const [status, setStatus] = useState("loading"); 
+  const [state, setState] = useState({ id: null, status: "loading", event: null });
   const [isSaving, setIsSaving] = useState(false);
   const [serverErrors, setServerErrors] = useState({}); 
   const [submitError, setSubmitError] = useState(""); 
 
   useEffect(() => {
     const controller = new AbortController();
-    setStatus("loading");
 
     getEvent(id, controller.signal)
-      .then((data) => {
-        setEvent(data);
-        setStatus("ready");
-      })
+      .then((data) => setState({ id, status: "ready", event: data }))
       .catch((error) => {
         if (error.name === "AbortError") return; 
-        setStatus(error.status === 404 ? "notFound" : "error");
+        setState({
+          id,
+          status: error.status === 404 ? "notFound" : "error",
+          event: null,
+        });
       });
 
     return () => controller.abort(); 
   }, [id]);
+
+  const { status, event } = state.id === id
+    ? state
+    : { status: "loading", event: null };
 
   const goToList = () => navigate(EVENTS_LIST_PATH);
 
@@ -69,41 +73,40 @@ export default function EventEditPage() {
   }
 
   if (status === "loading")
-    return <p className="p-6 text-sm text-gray-600">Carregando evento…</p>;
+    return <p role="status" className="admin-loading">Carregando evento…</p>;
 
   if (status === "notFound" || status === "error") {
     return (
-      <main className="mx-auto max-w-2xl p-6">
-        <p role="alert" className="text-sm text-red-600">
+      <section className="admin-page">
+        <p role="alert" className="admin-form-error">
           {status === "notFound"
             ? "Este evento não existe mais."
             : "Não foi possível carregar o evento. Tente novamente em instantes."}
         </p>
-        <button type="button" onClick={goToList}
-          className="mt-4 rounded-md border border-gray-300 px-4 py-2 text-sm font-medium
-                     text-gray-700 hover:bg-gray-50">
+        <button type="button" onClick={goToList} className="admin-secondary-button">
           Voltar à listagem
         </button>
-      </main>
+      </section>
     );
   }
 
   return (
-    <main className="mx-auto max-w-2xl p-6">
-      <h1 className="mb-6 text-2xl font-semibold text-gray-900">Editar evento</h1>
+    <section className="admin-page">
+      <h1 className="admin-title">Editar evento</h1>
       {submitError && (
-        <p role="alert" className="mb-4 text-sm text-red-600">
+        <p role="alert" className="admin-form-error">
           {submitError}
         </p>
       )}
 
       <EventForm
+        key={id}
         initialValues={toFormValues(event)}
         onSubmit={handleSubmit}
         onCancel={goToList}
         isSubmitting={isSaving}
         serverErrors={serverErrors}
       />
-    </main>
+    </section>
   );
 }
