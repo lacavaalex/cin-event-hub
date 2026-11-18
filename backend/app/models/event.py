@@ -10,7 +10,7 @@ event_location). Assim o banco pode ter seus nomes sem mudar o código do backen
 
 import datetime as dt
 
-from sqlalchemy import Date, DateTime, ForeignKey, String, Text, Time, func
+from sqlalchemy import Date, DateTime, ForeignKey, Index, String, Text, Time, func, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -43,3 +43,21 @@ class Event(Base):
     updated_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+# Índices criados pelo database/001_schema.sql (mesmos nomes). Declarados aqui
+# só para o model documentar o banco: como a tabela já existe, o create_all
+# não cria índice nenhum.
+Index(
+    "ix_events_ativos_data",
+    Event.date,
+    Event.time,
+    Event.id,
+    postgresql_where=text("status = 'active'"),
+)
+Index("ix_events_event_type", Event.event_type)
+Index(
+    "ix_events_title_lower",
+    func.lower(Event.title).label("title_lower"),
+    postgresql_ops={"title_lower": "text_pattern_ops"},
+)

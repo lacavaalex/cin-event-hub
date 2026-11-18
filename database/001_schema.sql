@@ -103,3 +103,15 @@ CREATE TABLE favorito (
 	CONSTRAINT fk_favorito_usuario FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE,
 	CONSTRAINT fk_favorito_evento FOREIGN KEY (id_events) REFERENCES events(id_event) ON DELETE CASCADE
 );
+
+-- Índices de events. Os nomes ficam iguais aos do Index() em backend/app/models/event.py.
+-- Listagem pública (US 3.1): WHERE status = 'active' ORDER BY data, hora, id + LIMIT/OFFSET.
+-- Índice parcial: só guarda os eventos ativos, que são os que a listagem lê.
+CREATE INDEX ix_events_ativos_data
+	ON events (int_event_date, int_event_time, id_event)
+	WHERE status = 'active';
+-- Filtro por tipo (Palestra, Workshop, ...).
+CREATE INDEX ix_events_event_type ON events (event_type);
+-- Busca por título sem diferenciar maiúsculas: serve para lower(title) = ... e
+-- lower(title) LIKE 'prefixo%'. Não serve para ILIKE '%meio%' (isso pede pg_trgm).
+CREATE INDEX ix_events_title_lower ON events (lower(title) text_pattern_ops);
