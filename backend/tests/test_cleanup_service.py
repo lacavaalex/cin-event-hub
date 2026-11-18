@@ -28,11 +28,11 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.core.security import create_access_token
+from app.core.security import create_access_token, hash_password
 from app.main import app
 from app.models.event import Event
 from app.models.extraction_log import ExtractionLog
-from app.repositories import event_repository
+from app.repositories import event_repository, user_repository
 from app.services.events.cleanup_scheduler import (
     run_cleanup_job,
     shutdown_cleanup_scheduler,
@@ -347,6 +347,19 @@ class TestAgendamentoLimpezaUS52:
 class TestEndpointCleanup:
     """Testes da rota HTTP POST /events/cleanup."""
 
+    @staticmethod
+    def _auth_admin(db_session: Session) -> dict[str, str]:
+        user_repository.create(
+            db_session,
+            name="Admin",
+            email="admin@cin.ufpe.br",
+            hashed_password=hash_password("123456"),
+            profile_name="admin",
+            is_admin=True,
+        )
+        token = create_access_token({"sub": "admin@cin.ufpe.br"})
+        return {"Authorization": f"Bearer {token}"}
+
     def test_trigger_cleanup_requer_autenticacao(self):
         """Tentativa sem JWT deve retornar 401 ou 403."""
         client = TestClient(app, raise_server_exceptions=False)
@@ -360,10 +373,7 @@ class TestEndpointCleanup:
         app.dependency_overrides[get_db] = lambda: db_session
         try:
             client = TestClient(app)
-
-            # Gera token para admin
-            token = create_access_token({"sub": "admin@cin.ufpe.br"})
-            headers = {"Authorization": f"Bearer {token}"}
+            headers = self._auth_admin(db_session)
 
             # Cria evento expirado no banco
             _criar_evento(
@@ -390,8 +400,7 @@ class TestEndpointCleanup:
         app.dependency_overrides[get_db] = lambda: db_session
         try:
             client = TestClient(app)
-            token = create_access_token({"sub": "admin@cin.ufpe.br"})
-            headers = {"Authorization": f"Bearer {token}"}
+            headers = self._auth_admin(db_session)
 
             hoje = dt.datetime.now(LOCAL_TZ).date()
             futuro = hoje + dt.timedelta(days=30)

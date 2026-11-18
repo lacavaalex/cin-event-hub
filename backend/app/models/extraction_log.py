@@ -1,4 +1,7 @@
-"""Model ORM do log de extração de e-mails (tabela 'extraction_logs').
+"""Model ORM do log de extração de e-mails (tabela 'extracao').
+
+A tabela é criada pelo ``database/001_schema.sql``, que define as colunas, o
+UNIQUE de ``gmail_message_id``, o CHECK de ``status`` e a FK de ``event_id``.
 
 Entidade "LogDeExtração":
 id, e-mail de origem, status (processado/ignorado/erro), timestamp, dados extraídos.
@@ -20,7 +23,7 @@ from app.database import Base
 
 
 class ExtractionLog(Base):
-    __tablename__ = "extraction_logs"
+    __tablename__ = "extracao"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     gmail_message_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
@@ -28,7 +31,11 @@ class ExtractionLog(Base):
     status: Mapped[str] = mapped_column(String(20))  # processado | ignorado | erro
     extracted_data: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     error_message: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    event_id: Mapped[int | None] = mapped_column(ForeignKey("events.id"), nullable=True)
+    # SET NULL: o log é histórico da extração e sobrevive à exclusão do evento
+    # (US 2.3 / US 5.1). Sem isso o PostgreSQL recusa apagar evento vindo de e-mail.
+    event_id: Mapped[int | None] = mapped_column(
+        ForeignKey("events.id_event", ondelete="SET NULL"), nullable=True
+    )
     created_at: Mapped[dt.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

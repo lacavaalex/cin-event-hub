@@ -1,11 +1,16 @@
 """Model ORM do evento (tabela 'events').
 
 Compatível com o schema usado na branch develop_alb (Albert).
+
+Os nomes dos atributos em Python (id, date, time, location) são os que o
+backend usa; o primeiro argumento de ``mapped_column`` é o nome da coluna no
+``database/001_schema.sql`` (id_event, int_event_date, int_event_time,
+event_location). Assim o banco pode ter seus nomes sem mudar o código do backend.
 """
 
 import datetime as dt
 
-from sqlalchemy import Date, DateTime, String, Text, Time, func
+from sqlalchemy import Date, DateTime, ForeignKey, String, Text, Time, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -14,14 +19,20 @@ from app.database import Base
 class Event(Base):
     __tablename__ = "events"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column("id_event", primary_key=True)
+    # Relacionamento "cadastra" do EER: o administrador que cadastrou o evento é
+    # um ``usuario`` com is_admin (não há tabela própria de admin). Nulo para
+    # eventos extraídos de e-mail; apagar o usuário mantém o evento (SET NULL).
+    admin_id: Mapped[int | None] = mapped_column(
+        ForeignKey("usuario.id_usuario", ondelete="SET NULL"), nullable=True
+    )
     title: Mapped[str] = mapped_column(String(200))
     description: Mapped[str] = mapped_column(Text)
-    date: Mapped[dt.date] = mapped_column(Date)
-    time: Mapped[dt.time] = mapped_column(Time)
-    end_date: Mapped[dt.date | None] = mapped_column(Date, nullable=True)
-    end_time: Mapped[dt.time | None] = mapped_column(Time, nullable=True)
-    location: Mapped[str] = mapped_column(String(200))
+    date: Mapped[dt.date] = mapped_column("int_event_date", Date)
+    time: Mapped[dt.time] = mapped_column("int_event_time", Time)
+    end_date: Mapped[dt.date | None] = mapped_column("end_event_date", Date, nullable=True)
+    end_time: Mapped[dt.time | None] = mapped_column("end_event_time", Time, nullable=True)
+    location: Mapped[str] = mapped_column("event_location", String(200))
     event_type: Mapped[str] = mapped_column(String(50))
     registration_link: Mapped[str] = mapped_column(String(500))
     status: Mapped[str] = mapped_column(String(20), default="active")

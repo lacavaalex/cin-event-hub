@@ -1,91 +1,105 @@
--- =====================================================================
--- IESI-56 | US 2.1, 2.2, 2.3 | Tabela de eventos (PostgreSQL 13+)
--- Fonte: ModeloRelacionalIESI.drawio (nomes alinhados com o backend em
--- backend/app/models: tabelas e colunas em inglês, como o SQLAlchemy usa).
--- Execução: psql -U <usuario> -d <banco> -v ON_ERROR_STOP=1 -f database/001_schema.sql
--- Rode uma vez, em banco vazio. Se o backend já criou tabelas pelo
--- create_all, apague-as antes (DROP SCHEMA public CASCADE; CREATE SCHEMA public;).
--- =====================================================================
+CREATE TABLE usuario ( 
+	id_usuario 		INTEGER 		GENERATED ALWAYS AS IDENTITY, 
+	nome 			VARCHAR(90) 	NOT NULL, 
+	email 			VARCHAR(200) 	NOT NULL,
+	senha_hash 		VARCHAR(100)	NOT NULL,
+	nome_perfil 	VARCHAR(50)		NOT NULL,
+	is_admin 		BOOLEAN 		NOT NULL DEFAULT FALSE,
+	dt_cadastro		DATE			NOT NULL DEFAULT CURRENT_DATE,
 
--- ---------------------------------------------------------------------
--- users  (relacional: USUARIO) -- existe aqui só para events.admin_id (cadastra)
--- ---------------------------------------------------------------------
-CREATE TABLE users (
-    id              INTEGER      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    name            VARCHAR(200) NOT NULL,
-    email           VARCHAR(200) NOT NULL,
-    hashed_password VARCHAR(200) NOT NULL,
-    profile_name    VARCHAR(100),
-    is_admin        BOOLEAN      NOT NULL DEFAULT FALSE,
-    created_at      TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    CONSTRAINT uq_users_email UNIQUE (email)
+	CONSTRAINT pk_usuario PRIMARY KEY (id_usuario),
+	CONSTRAINT uk_usuario_email UNIQUE (email),
+
+	CONSTRAINT ck_usuario_nome_preenchido       CHECK (btrim(nome) <> ''),
+	CONSTRAINT ck_usuario_email_preenchido       CHECK (btrim(email) <> ''),
+	CONSTRAINT ck_usuario_senha_hash_preenchida  CHECK (btrim(senha_hash) <> ''),
+	CONSTRAINT ck_usuario_nome_perfil_preenchido CHECK (btrim(nome_perfil) <> '')
 );
 
--- ---------------------------------------------------------------------
--- extractions  (relacional: EXTRACAO) -- existe aqui só para events.extraction_id (gera)
--- ---------------------------------------------------------------------
-CREATE TABLE extractions (
-    id            INTEGER      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    message_id    VARCHAR(255) NOT NULL,
-    thread_id     VARCHAR(255),
-    body_hash     VARCHAR(64)  NOT NULL,
-    input_text    TEXT,
-    prompt        TEXT,
-    json_output   JSONB,
-    status        VARCHAR(20)  NOT NULL DEFAULT 'pending',
-    error_message TEXT,
-    extracted_at  TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    CONSTRAINT uq_extractions_message_id UNIQUE (message_id)
-);
 
--- ---------------------------------------------------------------------
--- events  (relacional: EVENTO)
--- Colunas de title..origin, created_at e updated_at batem com
--- backend/app/models/event.py. As demais são do relacional e são
--- opcionais (NULL), para o INSERT atual do backend continuar valendo.
--- ---------------------------------------------------------------------
 CREATE TABLE events (
-    id                INTEGER      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    extraction_id     INTEGER,
+	id_event         INTEGER      GENERATED ALWAYS AS IDENTITY,
     admin_id          INTEGER,
     title             VARCHAR(200) NOT NULL,
     description       TEXT         NOT NULL,
     capacity          INTEGER,
     event_type        VARCHAR(50)  NOT NULL,
-    date              DATE         NOT NULL,
-    time              TIME         NOT NULL,
-    end_date          DATE,
-    end_time          TIME,
-    location          VARCHAR(200) NOT NULL,
+    int_event_date    DATE         NOT NULL,
+    int_event_time    TIME         NOT NULL,
+    end_event_date    DATE,
+    end_event_time    TIME,
+    event_location    VARCHAR(200) NOT NULL,
     registration_link VARCHAR(500) NOT NULL,
     status            VARCHAR(20)  NOT NULL DEFAULT 'active',
     origin            VARCHAR(20)  NOT NULL DEFAULT 'manual',
-    created_at        TIMESTAMPTZ  NOT NULL DEFAULT now(),
-    updated_at        TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    created_at        TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at        TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    -- gera: uma extração pode gerar vários eventos; extração apagada não apaga o evento.
-    CONSTRAINT fk_events_extraction
-        FOREIGN KEY (extraction_id) REFERENCES extractions (id) ON DELETE SET NULL,
-    -- cadastra: usuário (admin) que cadastrou; apagar o usuário não apaga o evento.
-    CONSTRAINT fk_events_admin
-        FOREIGN KEY (admin_id) REFERENCES users (id) ON DELETE SET NULL,
-
-    CONSTRAINT ck_events_title_preenchido       CHECK (btrim(title) <> ''),
+	CONSTRAINT pk_events PRIMARY KEY (id_event),
+	CONSTRAINT fk_events_usuario
+		FOREIGN KEY (admin_id) REFERENCES usuario(id_usuario) ON DELETE SET NULL,
+		
+	CONSTRAINT ck_events_title_preenchido       CHECK (btrim(title) <> ''),
     CONSTRAINT ck_events_description_preenchida CHECK (btrim(description) <> ''),
-    CONSTRAINT ck_events_location_preenchido    CHECK (btrim(location) <> ''),
-    -- mesmos tipos aceitos pelo backend (schemas/event.py: EventType)
-    CONSTRAINT ck_events_event_type
+    CONSTRAINT ck_events_location_preenchido    CHECK (btrim(event_location) <> ''),
+
+	CONSTRAINT ck_events_event_type
         CHECK (event_type IN ('Palestra', 'Workshop', 'Hackathon', 'Outro')),
+    -- link http(s) obrigatório nos eventos manuais (US 2.1). Evento extraído de
+    -- e-mail (US 4.1) pode vir sem link: o parser grava '' quando não acha URL e a
+    -- coluna é NOT NULL. Por isso o vazio só é aceito fora da origem 'manual'; link
+    -- preenchido precisa ser http(s) em qualquer origem.
     CONSTRAINT ck_events_registration_link_http
-        CHECK (registration_link ~* '^https?://\S+$'),
+        CHECK (registration_link ~* '^https?://\S+$'
+               OR (origin <> 'manual' AND registration_link = '')),
     CONSTRAINT ck_events_status CHECK (status IN ('active', 'inactive')),
     CONSTRAINT ck_events_capacity CHECK (capacity IS NULL OR capacity > 0),
-    -- fim do evento: ou vem completo, ou não vem; e não pode ser antes do início
     CONSTRAINT ck_events_fim_completo
-        CHECK ((end_date IS NULL) = (end_time IS NULL)),
+        CHECK ((end_event_date IS NULL) = (end_event_time IS NULL)),
     CONSTRAINT ck_events_fim_apos_inicio
-        CHECK (end_date IS NULL OR (end_date, end_time) >= (date, time))
+        CHECK (end_event_date IS NULL OR (end_event_date, end_event_time) >= (int_event_date, int_event_time))
 );
--- A regra "data não pode estar no passado" (US 2.1) fica no backend
--- (PastEventDateError): um CHECK com CURRENT_DATE quebraria restore de backup
--- e a limpeza de eventos expirados (E5).
+
+-- Log de extração de e-mails: espelha o model ExtractionLog
+-- (backend/app/models/extraction_log.py). Os nomes das colunas são os mesmos
+-- dos atributos do model, para o model só precisar apontar para esta tabela.
+-- Minimização de dados (IESI-60): o corpo do e-mail não é guardado, só o id da
+-- mensagem e os campos já extraídos.
+-- Vem depois de events porque aponta para o evento gerado (event_id).
+CREATE TABLE extracao (
+	id					INTEGER			GENERATED ALWAYS AS IDENTITY,
+	gmail_message_id	VARCHAR(64)		NOT NULL,
+	source_email		VARCHAR(255)	NOT NULL,
+	status				VARCHAR(20)		NOT NULL,
+	extracted_data		JSON,
+	error_message		VARCHAR(500),
+	event_id			INTEGER,
+	created_at			TIMESTAMPTZ		NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+	CONSTRAINT pk_extracao PRIMARY KEY (id),
+	-- idempotência da varredura: cada mensagem do Gmail é registrada uma vez só
+	CONSTRAINT uk_extracao_gmail_message_id UNIQUE (gmail_message_id),
+	-- o log é histórico e sobrevive à exclusão do evento (US 2.3 / US 5.1)
+	CONSTRAINT fk_extracao_events
+		FOREIGN KEY (event_id) REFERENCES events(id_event) ON DELETE SET NULL,
+
+	CONSTRAINT ck_extracao_gmail_message_id_preenchido CHECK (btrim(gmail_message_id) <> ''),
+	-- processado (parser) e processado_ia (Gemini) publicaram evento; ignorado, erro,
+	-- extracao_incompleta (validação recusou, US 4.4) e nao_processado (legado, US 4.2)
+	-- não. Os seis valores são os usados pelo extraction_service da develop.
+	CONSTRAINT ck_extracao_status
+		CHECK (status IN ('processado', 'processado_ia', 'ignorado', 'nao_processado',
+		                  'extracao_incompleta', 'erro')),
+	-- só extração que publicou evento (processado ou processado_ia) tem event_id
+	CONSTRAINT ck_extracao_evento_so_processado
+		CHECK (event_id IS NULL OR status IN ('processado', 'processado_ia'))
+);
+
+CREATE TABLE favorito (
+	id_usuario	  	INTEGER		NOT NULL,
+	id_events      	INTEGER		NOT NULL,
+
+	CONSTRAINT pk_favorito PRIMARY KEY (id_usuario, id_events),
+	CONSTRAINT fk_favorito_usuario FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE,
+	CONSTRAINT fk_favorito_evento FOREIGN KEY (id_events) REFERENCES events(id_event) ON DELETE CASCADE
+);

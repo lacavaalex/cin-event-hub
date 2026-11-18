@@ -39,7 +39,7 @@ def run(db: Session = Depends(get_db)):
     Retorna quantos e-mails foram extraídos pelo parser (``processed``), pela IA
     (``processed_ia``), ignorados, não processados (alertas), descartados pela
     validação autónoma (``discarded``) e com erro — espelhando os logs da tabela
-    ``extraction_logs``.
+    ``extracao``.
     Exige token JWT de administrador.
     """
     summary = run_extraction(db)

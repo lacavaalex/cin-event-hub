@@ -1,30 +1,138 @@
-"""Fixtures compartilhadas dos testes do backend.
+"""Fixtures compartilhadas dos testes do backend — rodam em PostgreSQL.
 
-Usa um SQLite em memória para não tocar no banco de desenvolvimento
-(``backend/eventos.db``). Os models são importados explicitamente para que as
-tabelas sejam registradas no ``Base.metadata`` antes do ``create_all``.
+Por que PostgreSQL (e não SQLite)
+---------------------------------
+O backend começou com SQLite em memória nos testes (padrão de desenvolvimento
+enquanto o PostgreSQL não estava pronto). O banco de produção é PostgreSQL e as
+regras de negócio (CHECKs, FKs, tipos) vivem no ``database/001_schema.sql``;
+testar em SQLite não exercitava essas regras. Veja ``docs/migracao-postgresql.md``.
+
+Como funciona
+-------------
+1. Uma vez por execução do pytest, cria o banco temporário ``iesi_test_backend``
+   (apaga se sobrou de uma execução anterior).
+2. Aplica ``database/001_schema.sql`` — as tabelas que o schema define
+   (usuario, events, extracao, favorito) nascem com todas as restrições do banco.
+3. ``Base.metadata.create_all`` cria só o que o schema ainda não tem.
+   Tabelas que já existem são mantidas. (A antiga tabela ``admins`` deixou de
+   existir: administrador é um ``usuario`` com ``is_admin = TRUE``.)
+4. Cada teste começa com as tabelas vazias (TRUNCATE ... RESTART IDENTITY).
+5. No fim, apaga o banco temporário. Nenhum outro banco do servidor é tocado.
+
+Servidor: por padrão ``postgresql://postgres:dev@localhost:5432/postgres``
+(o mesmo de ``python database/run_tests.py``). Para outro servidor, defina
+``DATABASE_ADMIN_URL``.
 """
 
+import datetime as dt
+import os
+import pathlib
+
+import psycopg
 import pytest
-from sqlalchemy import create_engine
+from psycopg import sql
+from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
 from app.database import Base
-from app.models.admin import Admin  # noqa: F401 — registra a tabela admins
-from app.models.event import Event  # noqa: F401 — registra a tabela events
-from app.models.events.models import Favorite  # noqa: F401 — registra a tabela favorites
-from app.models.extraction_log import ExtractionLog  # noqa: F401 — registra extraction_logs
-from app.models.user import User  # noqa: F401 — registra a tabela users
+# Os models são importados para serem registrados no Base.metadata.
+from app.models.event import Event  # noqa: F401
+from app.models.events.models import Favorite  # noqa: F401
+from app.models.extraction_log import ExtractionLog  # noqa: F401
+from app.models.user import User  # noqa: F401
+
+ADMIN_URL = os.environ.get(
+    "DATABASE_ADMIN_URL", "postgresql://postgres:dev@localhost:5432/postgres"
+)
+TEST_DB = "iesi_test_backend"
+SCHEMA_SQL = pathlib.Path(__file__).resolve().parents[2] / "database" / "001_schema.sql"
+
+
+def _url_do_banco(database: str) -> str:
+    """URL do SQLAlchemy (driver psycopg 3) para um banco do servidor de testes."""
+    return (
+        make_url(ADMIN_URL)
+        .set(drivername="postgresql+psycopg", database=database)
+        .render_as_string(hide_password=False)
+    )
+
+
+@pytest.fixture(scope="session")
+def engine():
+    """Banco temporário com o schema oficial (database/001_schema.sql) aplicado."""
+    try:
+        admin = psycopg.connect(ADMIN_URL, autocommit=True)
+    except psycopg.OperationalError as exc:
+        pytest.exit(
+            "PostgreSQL inacessível para os testes do backend "
+            f"({exc}). Suba um servidor e/ou defina DATABASE_ADMIN_URL "
+            "(veja docs/migracao-postgresql.md).",
+            returncode=2,
+        )
+    banco = sql.Identifier(TEST_DB)
+    admin.execute(sql.SQL("DROP DATABASE IF EXISTS {} WITH (FORCE)").format(banco))
+    admin.execute(sql.SQL("CREATE DATABASE {}").format(banco))
+
+    # 1) schema oficial: tabelas e restrições do banco
+    teste = make_url(ADMIN_URL).set(database=TEST_DB).render_as_string(hide_password=False)
+    with psycopg.connect(teste, autocommit=True) as conn:
+        conn.execute(SCHEMA_SQL.read_text(encoding="utf-8"))
+
+    # 2) o que o schema ainda não cobre (hoje nada: todos os models mapeiam o SQL)
+    eng = create_engine(_url_do_banco(TEST_DB), pool_pre_ping=True)
+    Base.metadata.create_all(bind=eng)
+    try:
+        yield eng
+    finally:
+        eng.dispose()
+        admin.execute(sql.SQL("DROP DATABASE IF EXISTS {} WITH (FORCE)").format(banco))
+        admin.close()
 
 
 @pytest.fixture()
-def db_session():
-    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-    Base.metadata.create_all(bind=engine)
+def db_session(engine):
+    """Sessão em um banco limpo: todas as tabelas esvaziadas antes de cada teste."""
+    # todas as tabelas do banco (inclui as do schema SQL que não têm model, como
+    # extracao e email_associado)
+    tabelas = ", ".join(f'"{nome}"' for nome in inspect(engine).get_table_names())
+    with engine.begin() as conn:
+        conn.execute(text(f"TRUNCATE {tabelas} RESTART IDENTITY CASCADE"))
     factory = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
     session = factory()
     try:
         yield session
     finally:
         session.close()
-        engine.dispose()
+
+
+@pytest.fixture()
+def criar_eventos(db_session):
+    """Fábrica: ``criar_eventos(n)`` grava n eventos manuais, um por dia, a partir de 2030-01-01.
+
+    Os títulos são "Evento 1", "Evento 2"... na ordem cronológica. Parâmetros:
+    ``status``, ``data_inicial``, ``hora``, ``prefixo`` e ``dias_entre`` para
+    montar os casos de cada teste.
+    """
+
+    def _criar(quantidade, status="active", data_inicial=dt.date(2030, 1, 1),
+               hora=dt.time(10, 0), prefixo="Evento", dias_entre=1):
+        eventos = []
+        for i in range(quantidade):
+            evento = Event(
+                title=f"{prefixo} {i + 1}",
+                description="Descrição",
+                date=data_inicial + dt.timedelta(days=i * dias_entre),
+                time=hora,
+                location="CIn",
+                event_type="Palestra",
+                registration_link="https://exemplo.com",
+                status=status,
+                origin="manual",
+            )
+            db_session.add(evento)
+            eventos.append(evento)
+        db_session.commit()
+        return eventos
+
+    return _criar

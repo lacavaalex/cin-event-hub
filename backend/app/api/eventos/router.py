@@ -1,7 +1,7 @@
 """Router de eventos — rotas de criação, listagem, edição, exclusão, favoritos e limpeza.
 
 POST /events                   → cria evento (US 2.1, protegida por JWT)
-GET  /events                   → lista eventos ativos (US 3.1, pública)
+GET  /events?page=&page_size=  → lista eventos ativos paginados (US 3.1, IESI-70, pública)
 GET  /events/admin             → lista todos os eventos (US 2.4, protegida por JWT)
 GET  /events/{id}              → busca evento por ID (US 2.2)
 PUT  /events/{id}              → edita evento (US 2.2, protegida por JWT)
@@ -12,20 +12,28 @@ POST /events/cleanup           → dispara limpeza de expirados (US 5.1/5.2, pro
 """
 
 import datetime as dt
+
 from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_admin
 from app.database import get_db
+from app.models.user import User
 from app.schemas.cleanup import CleanupReportSchema
-from app.schemas.event import EventCreate, EventRead
+from app.schemas.event import EventCreate, EventPage, EventRead
 from app.schemas.events.schemas import (
     AdminEventRead,
     EventRead as EventReadAlb,
     EventUpdate,
     FavoriteStatus,
 )
-from app.services.event_service import PastEventDateError, create_event, list_events
+from app.services.event_service import (
+    DEFAULT_PAGE_SIZE,
+    MAX_PAGE_SIZE,
+    PastEventDateError,
+    create_event,
+    list_events,
+)
 from app.services.events import service
 from app.services.events.cleanup_service import (
     FutureReferenceDateError,
@@ -48,12 +56,18 @@ def get_current_user_id(x_user_id: int = Header(..., alias="X-User-Id")) -> int:
     "",
     response_model=EventRead,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(get_current_admin)],
 )
-def create(payload: EventCreate, db: Session = Depends(get_db)):
-    """Cria um novo evento (US 2.1). Requer JWT."""
+def create(
+    payload: EventCreate,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin),
+):
+    """Cria um novo evento (US 2.1). Requer JWT de um usuário administrador.
+
+    O evento fica vinculado ao administrador que o cadastrou (``events.admin_id``).
+    """
     try:
-        event = create_event(db, payload)
+        event = create_event(db, payload, admin_id=admin.id)
     except PastEventDateError:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -64,10 +78,20 @@ def create(payload: EventCreate, db: Session = Depends(get_db)):
 
 # -- Listagem (US 3.1) --
 
-@router.get("", response_model=list[EventRead])
-def list_all(db: Session = Depends(get_db)):
-    """Lista todos os eventos ativos. Rota pública."""
-    return list_events(db)
+@router.get("", response_model=EventPage)
+def list_all(
+    page: int = Query(1, ge=1, description="Página atual (começa em 1)"),
+    page_size: int = Query(
+        DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE, description="Eventos por página"
+    ),
+    db: Session = Depends(get_db),
+):
+    """Lista os eventos ativos, uma página por vez. Rota pública.
+
+    Sem parâmetros devolve os 20 primeiros. A resposta traz ``page`` e
+    ``total_pages``: há próxima página enquanto ``page < total_pages``.
+    """
+    return list_events(db, page=page, page_size=page_size)
 
 
 # -- Listagem administrativa (US 2.4) --
@@ -105,6 +129,8 @@ def favorite_event(
         return service.favorite_event(db, user_id, event_id)
     except service.EventNotFoundError:
         raise HTTPException(status_code=404, detail="Evento não encontrado")
+    except service.UserNotFoundError:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
 
 @router.delete("/{event_id}/favorite", response_model=FavoriteStatus)

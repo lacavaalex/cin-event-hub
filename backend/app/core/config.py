@@ -7,7 +7,12 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ── Banco de dados ──────────────────────────────────────────────────
-DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./eventos.db")
+# PostgreSQL é o banco do projeto (dev, testes e produção). O padrão abaixo é o
+# PostgreSQL local descrito em docs/migracao-postgresql.md; para outro servidor,
+# defina DATABASE_URL no .env. SQLite deixou de ser suportado.
+DATABASE_URL: str = os.getenv(
+    "DATABASE_URL", "postgresql+psycopg://postgres:dev@localhost:5432/eventos"
+)
 
 # ── JWT ─────────────────────────────────────────────────────────────
 SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", os.getenv("SECRET_KEY", "troque-esta-chave-em-producao"))
@@ -15,8 +20,12 @@ JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
 JWT_EXPIRE_MINUTES: int = int(os.getenv("JWT_EXPIRE_MINUTES", "60"))
 
 # ── Admin seed ──────────────────────────────────────────────────────
+# O administrador inicial é um registro da tabela ``usuario`` com is_admin = TRUE
+# (modelo EER: não existe entidade/tabela própria de admin).
 ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "admin@cin.ufpe.br")
 ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "123456")
+ADMIN_NAME: str = os.getenv("ADMIN_NAME", "Administrador")
+ADMIN_PROFILE_NAME: str = os.getenv("ADMIN_PROFILE_NAME", "admin")
 
 # ── Extração de e-mails ────────────────────────────────────
 EXTRACTION_ENABLED: bool = os.getenv("EXTRACTION_ENABLED", "true").lower() in {

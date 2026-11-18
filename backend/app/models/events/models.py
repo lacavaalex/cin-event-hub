@@ -1,5 +1,5 @@
-import datetime as dt
-from sqlalchemy import DateTime, ForeignKey, UniqueConstraint, func
+import datetime as dt  # noqa: F401
+from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database.database import Base
@@ -7,14 +7,18 @@ from app.models.event import Event  # noqa: F401
 
 
 class Favorite(Base):
-    __tablename__ = "favorites"
-    __table_args__ = (
-        UniqueConstraint("user_id", "event_id", name="uq_favorites_user_event"),
-    )
+    """Tabela 'favorito' do database/001_schema.sql.
 
-    id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
-    event_id: Mapped[int] = mapped_column(ForeignKey("events.id", ondelete="CASCADE"))
-    created_at: Mapped[dt.datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
+    A chave primária é composta (id_usuario, id_events): o par já é único, então
+    não há coluna ``id`` nem ``created_at``. Os atributos continuam ``user_id`` e
+    ``event_id`` para não mudar o código dos repositórios.
+    """
+
+    __tablename__ = "favorito"
+
+    user_id: Mapped[int] = mapped_column(
+        "id_usuario", ForeignKey("usuario.id_usuario", ondelete="CASCADE"), primary_key=True
+    )
+    event_id: Mapped[int] = mapped_column(
+        "id_events", ForeignKey("events.id_event", ondelete="CASCADE"), primary_key=True
     )
