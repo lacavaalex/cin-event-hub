@@ -129,6 +129,8 @@ def favorite_event(
         return service.favorite_event(db, user_id, event_id)
     except service.EventNotFoundError:
         raise HTTPException(status_code=404, detail="Evento não encontrado")
+    except service.UserNotFoundError:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
 
 @router.delete("/{event_id}/favorite", response_model=FavoriteStatus)

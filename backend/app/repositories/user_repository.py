@@ -16,6 +16,11 @@ def get_by_email(db: Session, email: str) -> User | None:
     return db.scalar(select(User).where(User.email == email))
 
 
+def get_by_id(db: Session, user_id: int) -> User | None:
+    """Busca um usuário pela chave primária da tabela ``usuario``."""
+    return db.get(User, user_id)
+
+
 def get_admin_by_email(db: Session, email: str) -> User | None:
     """Busca um usuário administrador (``is_admin = TRUE``) pelo e-mail."""
     return db.scalar(select(User).where(User.email == email, User.is_admin.is_(True)))

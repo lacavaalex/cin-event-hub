@@ -4,6 +4,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy.orm import Session
 
 from app.models.events.models import Event
+from app.repositories import user_repository
 from app.repositories.events import repository
 from app.schemas.events.schemas import EventCreate, EventUpdate, FavoriteStatus
 
@@ -14,6 +15,10 @@ LOCAL_TZ = ZoneInfo("America/Recife")
 
 class EventNotFoundError(Exception):
     """Nenhum evento com o ID informado."""
+
+
+class UserNotFoundError(Exception):
+    """Nenhum usuário com o ID informado."""
 
 
 class PastEventDateError(Exception):
@@ -56,6 +61,8 @@ def favorite_event(db: Session, user_id: int, event_id: int) -> FavoriteStatus:
     """Favorita um evento para o usuário de forma idempotente."""
     if repository.get_by_id(db, event_id) is None:
         raise EventNotFoundError(event_id)
+    if user_repository.get_by_id(db, user_id) is None:
+        raise UserNotFoundError(user_id)
 
     if repository.get_favorite(db, user_id, event_id) is None:
         repository.create_favorite(db, user_id, event_id)
