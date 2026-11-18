@@ -1,0 +1,30 @@
+# Dependências do backend (FastAPI).
+# ATENÇÃO: eu não tenho acesso ao requirements.txt real do seu repositório
+# (este ambiente só guarda os arquivos que eu mesmo gerei nas sprints
+# anteriores). Este arquivo é um PALPITE razoável baseado no que o código
+# que escrevemos até aqui importa. Antes de usar o Dockerfile, confira
+# esta lista contra o requirements.txt real do cin-event-hub e ajuste as
+# versões / pacotes que faltarem (ex.: bibliotecas específicas do Gmail
+# API e do Gemini que o time da IA (US 4.1/4.2) tenha escolhido).
+
+fastapi==0.115.0
+uvicorn[standard]==0.32.0
+sqlalchemy==2.0.35
+psycopg[binary]==3.2.3
+pydantic==2.9.2
+pydantic-settings==2.5.2
+python-jose[cryptography]==3.3.0
+python-multipart==0.0.12
+
+# Integração com IA (US 4.2 - middleware Gemini)
+google-generativeai==0.8.3
+
+# Integração com e-mail institucional (US 4.1 - captura de e-mails)
+google-api-python-client==2.149.0
+google-auth-httplib2==0.2.0
+google-auth-oauthlib==1.2.1
+
+# Testes (regra de "nenhum código sem teste" da Sprint 2)
+pytest==8.3.3
+pytest-mock==3.14.0
+httpx==0.27.2
