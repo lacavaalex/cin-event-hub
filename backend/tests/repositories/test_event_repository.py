@@ -80,3 +80,83 @@ class TestGetAllPaginacao:
         ids = [e.id for e in pagina_1 + pagina_2]
         assert len(ids) == 6
         assert len(set(ids)) == 6
+
+
+class TestBuscaDuplicataAtiva:
+    """IESI-76: Consulta do evento ativo com mesmo título (ou similar) e data."""
+
+    DATA = dt.date(2030, 5, 10)
+
+    def _criar(self, db_session, titulo, *, data=None, status="active"):
+        evento = Event(
+            title=titulo,
+            description="Descrição",
+            date=data or self.DATA,
+            time=dt.time(14, 0),
+            location="CIn",
+            event_type="Palestra",
+            registration_link="https://exemplo.com",
+            status=status,
+            origin="manual",
+        )
+        db_session.add(evento)
+        db_session.commit()
+        return evento
+
+    def test_mesmo_titulo_normalizado_e_mesma_data(self, db_session):
+        existente = self._criar(db_session, "Seminário de Visão Computacional")
+
+        encontrado = event_repository.find_active_duplicate_by_title_and_date(
+            db_session, "seminario de visao computacional", self.DATA
+        )
+
+        assert encontrado is not None
+        assert encontrado.id == existente.id
+
+    def test_marcador_de_lembrete_no_titulo_nao_impede_a_busca(self, db_session):
+        existente = self._criar(db_session, "Palestra de IA")
+
+        encontrado = event_repository.find_active_duplicate_by_title_and_date(
+            db_session, "Lembrete: Palestra de IA", self.DATA
+        )
+
+        assert encontrado is not None
+        assert encontrado.id == existente.id
+
+    def test_titulo_similar_e_mesma_data(self, db_session):
+        existente = self._criar(db_session, "Hackathon CIn")
+
+        encontrado = event_repository.find_active_duplicate_by_title_and_date(
+            db_session, "Hackathon do CIn", self.DATA
+        )
+
+        assert encontrado is not None
+        assert encontrado.id == existente.id
+
+    def test_mesmo_titulo_em_outra_data_nao_e_duplicata(self, db_session):
+        self._criar(db_session, "Palestra de IA", data=self.DATA)
+
+        encontrado = event_repository.find_active_duplicate_by_title_and_date(
+            db_session, "Palestra de IA", self.DATA + dt.timedelta(days=1)
+        )
+
+        assert encontrado is None
+
+    def test_titulo_distinto_nao_e_duplicata(self, db_session):
+        self._criar(db_session, "Palestra de IA")
+
+        encontrado = event_repository.find_active_duplicate_by_title_and_date(
+            db_session, "Minicurso de SQL", self.DATA
+        )
+
+        assert encontrado is None
+
+    def test_evento_inativo_nao_e_duplicata(self, db_session):
+        self._criar(db_session, "Palestra de IA", status="inactive")
+
+        encontrado = event_repository.find_active_duplicate_by_title_and_date(
+            db_session, "Palestra de IA", self.DATA
+        )
+
+        assert encontrado is None
+

@@ -9,6 +9,7 @@ import datetime as dt
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.core.texto import SIMILARIDADE_MINIMA, titulos_sao_similares
 from app.models.event import Event
 
 
@@ -41,6 +42,33 @@ def get_all(db: Session, limit: int = 20, offset: int = 0) -> list[Event]:
 def count_active(db: Session) -> int:
     """Conta os eventos ativos (base do total de páginas da listagem, IESI-70)."""
     return db.query(func.count(Event.id)).filter(Event.status == "active").scalar()
+
+
+def find_active_duplicate_by_title_and_date(
+    db: Session,
+    title: str,
+    event_date: dt.date,
+    *,
+    limite: float = SIMILARIDADE_MINIMA,
+) -> Event | None:
+    """Busca um evento ativo com o mesmo título (ou similar) e a mesma data (IESI-76).
+
+    O filtro ``status='active' AND date=:data`` usa o índice parcial
+    ``ix_events_ativos_data`` e reduz os candidatos a um único dia; a comparação
+    de título (normalização + similaridade) acontece em memória para não exigir
+    a extensão ``pg_trgm``. Ordenar por id torna o resultado determinístico:
+    quando vários títulos similares existem, o mais antigo é devolvido.
+    """
+    candidatos = (
+        db.query(Event)
+        .filter(Event.status == "active", Event.date == event_date)
+        .order_by(Event.id)
+        .all()
+    )
+    for candidato in candidatos:
+        if titulos_sao_similares(title, candidato.title, limite=limite):
+            return candidato
+    return None
 
 
 def get_by_id(db: Session, event_id: int) -> Event | None:
