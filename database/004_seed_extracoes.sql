@@ -1,5 +1,5 @@
 -- =====================================================================
--- Massa de dados fictícia (6 extrações de e-mail, uma por status, e os 3 eventos
+-- Massa de dados fictícia (8 extrações de e-mail, uma por status, e os 3 eventos
 -- que elas publicaram)
 -- USO APENAS EM DESENVOLVIMENTO: não rodar em banco com extrações reais.
 -- Pré-requisito: database/001_schema.sql já executado (PostgreSQL).
@@ -19,10 +19,11 @@
 --   DELETE FROM events WHERE title IN ('Seminário de Visão Computacional Aplicada',
 --       'Oficina de Prompt Engineering com Gemini', 'Minicurso de SQL para Análise de Dados');
 --
--- Casos úteis para testar as telas e o pipeline (os 6 status do CHECK):
+-- Casos úteis para testar as telas e o pipeline (os 7 status do CHECK):
 --   * processado: 2 (parser), um deles com evento sem link de inscrição
 --   * processado_ia: 1 (Gemini publicou o evento)
---   * ignorado, nao_processado, extracao_incompleta e erro: 1 de cada, sem evento
+--   * ignorado, nao_processado, extracao_incompleta, ignorado_duplicata e erro:
+--     1 de cada, sem evento
 --   * só os status processado e processado_ia têm event_id
 -- =====================================================================
 
@@ -82,7 +83,10 @@ FROM (VALUES
      'evento descartado pela validação: data vazia', NULL, 6),
     ('seed-msg-0007', 'cin.ufpe.br', 'erro',
      NULL,
-     'falha ao consultar a IA: tempo limite excedido', NULL, 1)
+     'falha ao consultar a IA: tempo limite excedido', NULL, 1),
+    ('seed-msg-0008', 'listas.cin.ufpe.br', 'ignorado_duplicata',
+     '{"title": "Palestra de IA", "motivo": "duplicata/lembrete"}',
+     'Ignorado - Duplicata/Lembrete: já existe evento ativo com o mesmo título e data', NULL, 0)
 ) AS v (gmail_message_id, source_email, status, extracted_data, error_message, titulo_evento, horas_atras)
 LEFT JOIN events e ON e.title = v.titulo_evento
 WHERE NOT EXISTS (SELECT 1 FROM extracao x WHERE x.gmail_message_id = v.gmail_message_id);

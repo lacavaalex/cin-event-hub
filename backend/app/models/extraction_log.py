@@ -28,7 +28,9 @@ class ExtractionLog(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     gmail_message_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     source_email: Mapped[str] = mapped_column(String(255))
-    status: Mapped[str] = mapped_column(String(20))  # processado | ignorado | erro
+    status: Mapped[str] = mapped_column(String(20))
+    # processado | processado_ia | ignorado | nao_processado |
+    # extracao_incompleta | ignorado_duplicata ("Ignorado - Duplicata/Lembrete", US 4.5) | erro
     extracted_data: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     error_message: Mapped[str | None] = mapped_column(String(500), nullable=True)
     # SET NULL: o log é histórico da extração e sobrevive à exclusão do evento

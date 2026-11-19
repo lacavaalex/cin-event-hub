@@ -1,4 +1,4 @@
-"""Testes do serviço de extração (US 4.1 + US 4.2 + US 4.4) sem rede.
+"""Testes do serviço de extração (US 4.1 + 4.2 + 4.4 + 4.5) sem rede.
 
 Usa um cliente Gmail fake e um cliente Gemini fake (duck-typed) para cobrir os
 fluxos do Gherkin das stories:
@@ -20,15 +20,22 @@ US 4.4 (validação autónoma)
 - data no passado → evento descartado + log "extracao_incompleta"
 - título vazio → evento descartado + log "extracao_incompleta"
 - os descartes aparecem em GET /extraction/alerts (repositório)
+
+US 4.5 (desduplicação de lembretes)
+- IA/parser detectam evento ativo com mesmo título (ou similar) e mesma data
+- nenhum evento é criado; log "ignorado_duplicata" guarda o evento encontrado
+- evento inativo ou outra data não bloqueiam a publicação
 """
 
 import datetime as dt
+import json
 
 from app.models.event import Event
 from app.models.extraction_log import ExtractionLog
 from app.repositories import extraction_log_repository
 from app.services.extracao_email.extraction_service import (
     STATUS_EXTRACAO_INCOMPLETA,
+    STATUS_IGNORADO_DUPLICATA,
     STATUS_NAO_PROCESSADO,
     run_extraction,
 )
@@ -332,3 +339,107 @@ def test_alertas_incluem_descartes_e_registos_legados(db_session):
         STATUS_EXTRACAO_INCOMPLETA,
         STATUS_NAO_PROCESSADO,
     }
+
+
+# ── US 4.5: desduplicação de lembretes ────────────────────────────────
+DATA_DUPLICATA = dt.date(2027, 3, 20)
+
+
+def _evento_ativo(db_session, titulo, *, data=DATA_DUPLICATA, status="active"):
+    evento = Event(
+        title=titulo,
+        description="Evento já cadastrado",
+        date=data,
+        time=dt.time(14, 0),
+        location="Auditório do CIn",
+        event_type="Palestra",
+        registration_link="https://exemplo.com",
+        status=status,
+        origin="manual",
+    )
+    db_session.add(evento)
+    db_session.commit()
+    return evento
+
+
+def test_ia_lembrete_duplicata_nao_cria_evento_e_registra_log(db_session):
+    existente = _evento_ativo(db_session, "Palestra de IA")
+    client = ClientFake([_raw("dup-1", EMAIL_LIVRE, "Lembrete: Palestra de IA")])
+    gemini = GeminiFake(
+        result=_parsed_event(title="Palestra de IA", date=DATA_DUPLICATA)
+    )
+
+    summary = run_extraction(db_session, client, gemini_client=gemini)
+
+    assert summary.fetched == 1
+    assert summary.processed_ia == 0
+    assert summary.reminders_ignored == 1
+    assert db_session.query(Event).count() == 1
+
+    log = db_session.query(ExtractionLog).one()
+    assert log.status == STATUS_IGNORADO_DUPLICATA
+    assert log.event_id is None
+    assert "Ignorado - Duplicata/Lembrete" in (log.error_message or "")
+    assert json.loads(log.extracted_data)["duplicata_de"] == existente.id
+
+
+def test_parser_tambem_interrompe_lembrete_duplicado(db_session):
+    _evento_ativo(
+        db_session,
+        "Palestra de Segurança 2026",
+        data=dt.date(2025, 11, 25),
+    )
+    client = ClientFake([_raw("dup-2", EMAIL_OK, "Palestra de Segurança 2026")])
+
+    summary = run_extraction(db_session, client)
+
+    assert summary.processed == 0
+    assert summary.reminders_ignored == 1
+    assert db_session.query(Event).count() == 1
+    assert db_session.query(ExtractionLog).one().status == STATUS_IGNORADO_DUPLICATA
+
+
+def test_titulo_similar_com_mesma_data_e_duplicata(db_session):
+    _evento_ativo(db_session, "Hackathon CIn")
+    client = ClientFake([_raw("dup-3", EMAIL_LIVRE, "Hackathon do CIn")])
+    gemini = GeminiFake(
+        result=_parsed_event(title="Hackathon do CIn", date=DATA_DUPLICATA)
+    )
+
+    summary = run_extraction(db_session, client, gemini_client=gemini)
+
+    assert summary.processed_ia == 0
+    assert summary.reminders_ignored == 1
+    assert db_session.query(Event).count() == 1
+
+
+def test_mesmo_titulo_em_outra_data_nao_e_duplicata(db_session):
+    _evento_ativo(
+        db_session,
+        "Palestra de IA",
+        data=DATA_DUPLICATA + dt.timedelta(days=1),
+    )
+    client = ClientFake([_raw("dup-4", EMAIL_LIVRE, "Palestra de IA")])
+    gemini = GeminiFake(
+        result=_parsed_event(title="Palestra de IA", date=DATA_DUPLICATA)
+    )
+
+    summary = run_extraction(db_session, client, gemini_client=gemini)
+
+    assert summary.processed_ia == 1
+    assert summary.reminders_ignored == 0
+    assert db_session.query(Event).count() == 2
+
+
+def test_evento_inativo_nao_bloqueia_publicacao(db_session):
+    _evento_ativo(db_session, "Palestra de IA", status="inactive")
+    client = ClientFake([_raw("dup-5", EMAIL_LIVRE, "Palestra de IA")])
+    gemini = GeminiFake(
+        result=_parsed_event(title="Palestra de IA", date=DATA_DUPLICATA)
+    )
+
+    summary = run_extraction(db_session, client, gemini_client=gemini)
+
+    assert summary.processed_ia == 1
+    assert summary.reminders_ignored == 0
+    assert db_session.query(Event).count() == 2
