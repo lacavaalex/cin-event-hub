@@ -1,4 +1,4 @@
-"""Router de extração de e-mails — US 4.1 (extração) + US 4.2 (IA/alertas) + US 4.4.
+"""Router de extração de e-mails — US 4.1 + 4.2 + 4.4 + 4.5 (desduplicação).
 
 `POST /extraction/run` dispara manualmente um ciclo (útil para a primeira
 autorização do OAuth e para validar os critérios de aceite). A varredura
@@ -38,8 +38,9 @@ def run(db: Session = Depends(get_db)):
 
     Retorna quantos e-mails foram extraídos pelo parser (``processed``), pela IA
     (``processed_ia``), ignorados, não processados (alertas), descartados pela
-    validação autónoma (``discarded``) e com erro — espelhando os logs da tabela
-    ``extracao``.
+    validação autónoma (``discarded``), reconhecidos como lembrete de um evento
+    já ativo (``reminders_ignored``, US 4.5) e com erro — espelhando os logs da
+    tabela ``extracao``.
     Exige token JWT de administrador.
     """
     summary = run_extraction(db)
