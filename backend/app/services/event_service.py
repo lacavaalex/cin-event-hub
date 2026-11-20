@@ -67,12 +67,13 @@ def create_event(db: Session, payload: EventCreate, admin_id: int | None = None)
 def list_events(
     db: Session, page: int = 1, page_size: int = DEFAULT_PAGE_SIZE
 ) -> EventsPage:
-    """Retorna uma página dos eventos ativos com os metadados de paginação (US 3.1).
+    """Retorna uma página dos eventos ativos e não expirados com metadados (US 3.1 / 5.1).
 
     ``page`` começa em 1. Página além do total devolve ``items`` vazio, com
     ``total_pages`` correto, para o cliente saber onde parar.
     """
+    today = dt.datetime.now(LOCAL_TZ).date()
     offset = (page - 1) * page_size
-    items = event_repository.get_all(db, limit=page_size, offset=offset)
-    total = event_repository.count_active(db)
+    items = event_repository.get_all(db, limit=page_size, offset=offset, min_date=today)
+    total = event_repository.count_active(db, min_date=today)
     return EventsPage(items=items, page=page, total_pages=math.ceil(total / page_size))
