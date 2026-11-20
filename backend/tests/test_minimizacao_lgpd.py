@@ -268,5 +268,11 @@ def test_corpo_do_email_nao_vai_para_as_tabelas_extracao_e_email_associado(db_se
 
     run_extraction(db_session, ClientFake([_raw("m-8", EMAIL_COM_ASSINATURA)]))
 
-    for tabela in tabelas:
-        assert db_session.execute(text(f'SELECT count(*) FROM "{tabela}"')).scalar_one() == 0
+    # ``extracao`` é a própria tabela de log (model ExtractionLog): ela recebe uma
+    # linha por e-mail, mas nenhuma coluna pode conter o corpo do e-mail.
+    if "email_associado" in tabelas:
+        assert db_session.execute(text('SELECT count(*) FROM "email_associado"')).scalar_one() == 0
+    if "extracao" in tabelas:
+        assert db_session.execute(text('SELECT count(*) FROM "extracao"')).scalar_one() == 1
+        textos = [t for t in _todos_os_textos_do_banco(db_session) if t.startswith("extracao.")]
+        assert not any(EMAIL_COM_ASSINATURA in t for t in textos)
