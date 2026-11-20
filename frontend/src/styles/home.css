@@ -217,3 +217,70 @@
 .chip[aria-pressed='true']::before { background: var(--on-type, var(--on-color)); }
 
 .home-search-clear:disabled { opacity: 0.45; cursor: not-allowed; text-decoration: none; }
+
+/* Faixa "Esta semana" (US 3.7) */
+.upcoming {
+  --type: var(--t-outros);
+  margin: 8px 0 32px;
+  padding: 20px;
+  background: var(--surface);
+  border: 2px solid var(--ink);
+  border-left: 8px solid var(--red);
+  border-radius: 4px;
+  box-shadow: 4px 4px 0 var(--ink);
+}
+.upcoming h2 {
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  margin: 0 0 16px;
+}
+.upcoming-list {
+  list-style: none;
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+}
+@media (min-width: 760px) { .upcoming-list { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); } }
+.upcoming-item { min-width: 0; }
+.upcoming-link {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 12px;
+  align-items: baseline;
+  height: 100%;
+  padding: 12px;
+  color: var(--ink);
+  text-decoration: none;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.upcoming-link:hover { border-color: var(--type); }
+.upcoming-day {
+  grid-row: 1 / span 3;
+  align-self: center;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--type);
+  white-space: nowrap;
+}
+.upcoming-title { font-weight: 700; line-height: 1.2; }
+.upcoming-time { font-family: var(--mono); font-size: 0.875rem; color: var(--muted); }
+.upcoming-type {
+  justify-self: start;
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--type);
+}
+.upcoming .type-palestra { --type: var(--t-palestra); }
+.upcoming .type-workshop { --type: var(--t-workshop); }
+.upcoming .type-hackathon { --type: var(--t-hackathon); }
+.upcoming .type-minicurso { --type: var(--t-minicurso); }
+@media (prefers-reduced-motion: reduce) { .upcoming-link { transition: none; } }

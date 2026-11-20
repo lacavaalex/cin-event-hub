@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import EventCard from '../components/EventCard';
 import Pagination from '../components/Pagination';
+import UpcomingEvents from '../components/UpcomingEvents';
 import {
   TYPE_FILTERS,
   filterByKeyword,
@@ -22,7 +23,7 @@ export default function Home() {
 
   useEffect(() => {
     let active = true;
-    getEvents()
+    getEvents({ pageSize: 100 })
       .then((events) => active && setState({ status: 'success', events: sortByDate(events) }))
       .catch(() => active && setState({ status: 'error', events: [] }));
     return () => {
@@ -83,6 +84,8 @@ export default function Home() {
         </h1>
         <p>Palestras, workshops e hackathons em ordem cronológica.</p>
       </header>
+
+      {status === 'success' && <UpcomingEvents events={events} />}
 
       <div className="home-search" role="search">
         <label htmlFor="event-search" className="sr-only">
