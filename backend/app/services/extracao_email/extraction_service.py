@@ -24,8 +24,10 @@ Os registos "extracao_incompleta" alimentam o dashboard de monitorização
 
 from __future__ import annotations
 
+import datetime as dt
 import json
 from dataclasses import asdict, dataclass
+from zoneinfo import ZoneInfo
 
 from sqlalchemy.orm import Session
 
@@ -55,6 +57,18 @@ STATUS_IGNORADO = "ignorado"
 STATUS_NAO_PROCESSADO = "nao_processado"   # legado (pré-US 4.4) — ainda listado nos alertas
 STATUS_EXTRACAO_INCOMPLETA = "extracao_incompleta"  # US 4.4: validação recusou
 STATUS_ERRO = "erro"
+
+_LOCAL_TZ = ZoneInfo("America/Recife")
+
+
+@dataclass
+class _LastRunState:
+    last_run_at: dt.datetime | None = None
+    last_run_failed: bool = False
+    last_error: str | None = None
+
+
+_last_run_state = _LastRunState()
 
 
 @dataclass
@@ -92,6 +106,9 @@ def run_extraction(
         emails = client.fetch_new_emails()
     except Exception as exc:  # rede/quota — retentativa é a US 4.6 (fora deste escopo)
         summary.message = f"falha ao buscar e-mails: {exc}"
+        _last_run_state.last_run_at = dt.datetime.now(_LOCAL_TZ)
+        _last_run_state.last_run_failed = True
+        _last_run_state.last_error = _short(exc)
         return summary
 
     summary.fetched = len(emails)
@@ -100,6 +117,10 @@ def run_extraction(
             summary.duplicates += 1
             continue
         _process_one(db, raw, summary, gemini_client)
+
+    _last_run_state.last_run_at = dt.datetime.now(_LOCAL_TZ)
+    _last_run_state.last_run_failed = False
+    _last_run_state.last_error = None
     return summary
 
 
@@ -110,6 +131,34 @@ def list_alerts(db: Session, limit: int = 50) -> list[ExtractionLog]:
         [STATUS_EXTRACAO_INCOMPLETA, STATUS_NAO_PROCESSADO],
         limit,
     )
+
+
+def get_status(db: Session, limit: int = 20) -> dict:
+    """Consolida o status operacional da extração para o painel admin (US 4.3)."""
+    counts = extraction_log_repository.count_by_status(db)
+    total_logs = sum(counts.values())
+    total_processed = counts.get(STATUS_PROCESSADO, 0) + counts.get(STATUS_PROCESSADO_IA, 0)
+    last_run_at = _last_run_state.last_run_at or extraction_log_repository.get_last_created_at(db)
+    recent_processed = extraction_log_repository.list_by_statuses(
+        db,
+        [STATUS_PROCESSADO, STATUS_PROCESSADO_IA],
+        limit,
+    )
+    recent_errors = extraction_log_repository.list_by_statuses(
+        db,
+        [STATUS_ERRO, STATUS_EXTRACAO_INCOMPLETA, STATUS_NAO_PROCESSADO],
+        limit,
+    )
+    return {
+        "total_logs": total_logs,
+        "total_processed": total_processed,
+        "counts_by_status": counts,
+        "last_run_at": last_run_at,
+        "last_run_failed": _last_run_state.last_run_failed,
+        "last_error": _last_run_state.last_error,
+        "recent_processed": recent_processed,
+        "recent_errors": recent_errors,
+    }
 
 
 def _process_one(

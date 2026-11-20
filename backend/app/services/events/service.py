@@ -57,6 +57,12 @@ def list_admin_events(db: Session) -> list[Event]:
     return repository.list_all(db)
 
 
+def list_favorite_events(db: Session, user_id: int) -> list[Event]:
+    """Retorna os eventos ativos e não expirados favoritados pelo usuário (US 6.2)."""
+    today = dt.datetime.now(LOCAL_TZ).date()
+    return repository.list_favorite_events_by_user(db, user_id, min_date=today)
+
+
 def favorite_event(db: Session, user_id: int, event_id: int) -> FavoriteStatus:
     """Favorita um evento para o usuário de forma idempotente."""
     if repository.get_by_id(db, event_id) is None:

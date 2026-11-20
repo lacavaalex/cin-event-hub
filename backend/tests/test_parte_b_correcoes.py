@@ -211,3 +211,112 @@ def test_falha_de_persistencia_faz_rollback_e_processa_proximo_email(db_session,
     assert db_session.query(Event).one().title == "Segundo"
     statuses = {log.gmail_message_id: log.status for log in db_session.query(ExtractionLog).all()}
     assert statuses == {"b1": "erro", "b2": "processado"}
+
+
+# ---------- DEF-009 (BE-075, US 6.2): GET /events/favorites ----------
+
+def test_listar_favoritos_ordem_cronologica_filtra_inativos_e_expirados(client, db_session):
+    aluno_a = user_repository.create(
+        db_session, name="Aluno A", email="a@cin.ufpe.br",
+        hashed_password=hash_password("123"), profile_name="alunoa", is_admin=False,
+    )
+    aluno_b = user_repository.create(
+        db_session, name="Aluno B", email="b@cin.ufpe.br",
+        hashed_password=hash_password("123"), profile_name="alunob", is_admin=False,
+    )
+    hoje = dt.datetime.now(LOCAL_TZ).date()
+    ontem = hoje - dt.timedelta(days=1)
+    d2 = hoje + dt.timedelta(days=2)
+    d5 = hoje + dt.timedelta(days=5)
+
+    evs = [
+        Event(title="Tarde D2", description="D", date=d2, time=dt.time(16, 0), location="CIn",
+              event_type="Palestra", registration_link="https://x.com", status="active", origin="manual"),
+        Event(title="Manha D2", description="D", date=d2, time=dt.time(9, 0), location="CIn",
+              event_type="Workshop", registration_link="https://x.com", status="active", origin="manual"),
+        Event(title="Futuro D5", description="D", date=d5, time=dt.time(10, 0), location="CIn",
+              event_type="Hackathon", registration_link="https://x.com", status="active", origin="manual"),
+        Event(title="Inativo D5", description="D", date=d5, time=dt.time(11, 0), location="CIn",
+              event_type="Outro", registration_link="https://x.com", status="inactive", origin="manual"),
+        Event(title="Expirado", description="D", date=ontem, time=dt.time(10, 0), location="CIn",
+              event_type="Outro", registration_link="https://x.com", status="active", origin="manual"),
+        Event(title="So do B", description="D", date=d2, time=dt.time(8, 0), location="CIn",
+              event_type="Palestra", registration_link="https://x.com", status="active", origin="manual"),
+    ]
+    db_session.add_all(evs)
+    db_session.commit()
+
+    # Aluno A favorita 5 (incluindo inativo e expirado); Aluno B favorita 1
+    for ev in evs[:5]:
+        assert client.post(f"/events/{ev.id}/favorite", headers={"X-User-Id": str(aluno_a.id)}).status_code == 200
+    assert client.post(f"/events/{evs[5].id}/favorite", headers={"X-User-Id": str(aluno_b.id)}).status_code == 200
+
+    r_a = client.get("/events/favorites", headers={"X-User-Id": str(aluno_a.id)})
+    assert r_a.status_code == 200
+    assert [e["title"] for e in r_a.json()] == ["Manha D2", "Tarde D2", "Futuro D5"]
+
+    r_b = client.get("/events/favorites", headers={"X-User-Id": str(aluno_b.id)})
+    assert [e["title"] for e in r_b.json()] == ["So do B"]
+
+    # Usuário sem favoritos e ID acima de int4 → lista vazia sem 500; sem header → 422
+    assert client.get("/events/favorites", headers={"X-User-Id": "999999"}).json() == []
+    assert client.get("/events/favorites", headers={"X-User-Id": "99999999999"}).json() == []
+    assert client.get("/events/favorites").status_code == 422
+
+
+# ---------- DEF-012 (BE-160/165/155, US 4.3): GET /extraction/status ----------
+
+def test_extraction_status_exige_admin_valida_limit_e_reflete_banco(client, db_session, admin_headers):
+    assert client.get("/extraction/status").status_code in (401, 403)
+    assert client.get("/extraction/status?limit=0", headers=admin_headers).status_code == 422
+    assert client.get("/extraction/status?limit=-1", headers=admin_headers).status_code == 422
+
+    ev = Event(title="Ev", description="D", date=dt.date(2030, 1, 1), time=dt.time(10, 0),
+               location="CIn", event_type="Palestra", registration_link="", status="active", origin="email")
+    db_session.add(ev)
+    db_session.commit()
+
+    db_session.add_all([
+        ExtractionLog(gmail_message_id="s1", source_email="cin.ufpe.br", status="processado", event_id=ev.id),
+        ExtractionLog(gmail_message_id="s2", source_email="cin.ufpe.br", status="processado_ia", event_id=ev.id),
+        ExtractionLog(gmail_message_id="s3", source_email="cin.ufpe.br", status="ignorado", error_message="sem dados"),
+        ExtractionLog(gmail_message_id="s4", source_email="cin.ufpe.br", status="extracao_incompleta", error_message="data"),
+        ExtractionLog(gmail_message_id="s5", source_email="cin.ufpe.br", status="erro", error_message="timeout"),
+    ])
+    db_session.commit()
+
+    r = client.get("/extraction/status", headers=admin_headers)
+    assert r.status_code == 200
+    body = r.json()
+    assert body["total_logs"] == 5
+    assert body["total_processed"] == 2
+    assert body["counts_by_status"] == {
+        "processado": 1,
+        "processado_ia": 1,
+        "ignorado": 1,
+        "extracao_incompleta": 1,
+        "erro": 1,
+    }
+    assert {item["gmail_message_id"] for item in body["recent_processed"]} == {"s1", "s2"}
+    assert {item["gmail_message_id"] for item in body["recent_errors"]} == {"s4", "s5"}
+    assert body["last_run_at"] is not None
+
+
+def test_extraction_status_sinaliza_falha_do_gmail_e_limpa_ao_recuperar(client, db_session, admin_headers):
+    class _GmailQuebrado:
+        def is_configured(self):
+            return True
+
+        def fetch_new_emails(self):
+            raise RuntimeError("Gmail indisponível para fulano@cin.ufpe.br")
+
+    extraction_service.run_extraction(db_session, _GmailQuebrado(), _GeminiOff())
+    r_fail = client.get("/extraction/status", headers=admin_headers).json()
+    assert r_fail["last_run_failed"] is True
+    assert "[e-mail]" in (r_fail["last_error"] or "")
+    assert "fulano@cin.ufpe.br" not in (r_fail["last_error"] or "")
+
+    extraction_service.run_extraction(db_session, _GmailFake([]), _GeminiOff())
+    r_ok = client.get("/extraction/status", headers=admin_headers).json()
+    assert r_ok["last_run_failed"] is False
+    assert r_ok["last_error"] is None
