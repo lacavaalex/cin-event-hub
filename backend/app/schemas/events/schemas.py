@@ -1,7 +1,7 @@
 """Schemas Pydantic: o "contrato" da API para eventos."""
 import datetime as dt
 from enum import StrEnum
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
 
 class EventType(StrEnum):
@@ -25,6 +25,13 @@ class EventUpdate(BaseModel):
     location: str = Field(min_length=1, max_length=200)
     event_type: EventType
     registration_link: HttpUrl
+
+    @field_validator("registration_link")
+    @classmethod
+    def _validate_link_max_length(cls, value: HttpUrl) -> HttpUrl:
+        if len(str(value)) > 500:
+            raise ValueError("O link de inscrição deve ter no máximo 500 caracteres")
+        return value
 
 
 class EventCreate(EventUpdate):

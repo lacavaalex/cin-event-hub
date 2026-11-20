@@ -3,6 +3,12 @@ from sqlalchemy import select
 
 from app.models.events.models import Event, Favorite
 
+_PG_INT4_MAX = 2_147_483_647
+
+
+def _is_valid_pg_id(value: int) -> bool:
+    return 1 <= value <= _PG_INT4_MAX
+
 
 def create(db: Session, event: Event) -> Event:
     db.add(event)
@@ -21,6 +27,8 @@ def list_all(db: Session) -> list[Event]:
 
 
 def get_by_id(db: Session, event_id: int) -> Event | None:
+    if not _is_valid_pg_id(event_id):
+        return None
     return db.get(Event, event_id)
 
 
@@ -40,6 +48,8 @@ def delete(db: Session, event: Event) -> None:
 
 def get_favorite(db: Session, user_id: int, event_id: int) -> Favorite | None:
     """Busca o favorito de um usuário para um evento, se existir."""
+    if not (_is_valid_pg_id(user_id) and _is_valid_pg_id(event_id)):
+        return None
     stmt = select(Favorite).where(
         Favorite.user_id == user_id, Favorite.event_id == event_id
     )
@@ -48,6 +58,8 @@ def get_favorite(db: Session, user_id: int, event_id: int) -> Favorite | None:
 
 def list_favorites_by_user(db: Session, user_id: int) -> list[Favorite]:
     """Lista os favoritos de um usuário."""
+    if not _is_valid_pg_id(user_id):
+        return []
     stmt = select(Favorite).where(Favorite.user_id == user_id)
     return list(db.scalars(stmt).all())
 

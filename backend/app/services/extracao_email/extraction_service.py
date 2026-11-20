@@ -103,6 +103,15 @@ def run_extraction(
     return summary
 
 
+def list_alerts(db: Session, limit: int = 50) -> list[ExtractionLog]:
+    """Lista alertas de extração para curadoria do administrador (US 4.2 + US 4.4)."""
+    return extraction_log_repository.list_by_statuses(
+        db,
+        [STATUS_EXTRACAO_INCOMPLETA, STATUS_NAO_PROCESSADO],
+        limit,
+    )
+
+
 def _process_one(
     db: Session,
     raw: RawEmail,
@@ -119,8 +128,23 @@ def _process_one(
         summary.errors += 1
         return
 
-    _persist(db, raw, parsed, summary, status="active", log_status=STATUS_PROCESSADO)
-    summary.processed += 1
+    # US 4.4 / BE-120: validação autônoma também no caminho do parser estruturado
+    # (eventos com data passada são descartados e registrados como extracao_incompleta).
+    payload = asdict(parsed)
+    result = evaluate(payload)
+    if result.decision is not ValidationDecision.PUBLICAR:
+        _log(
+            db,
+            raw,
+            STATUS_EXTRACAO_INCOMPLETA,
+            extracted_data=json.dumps(payload, default=str, ensure_ascii=False),
+            error_message=_short(f"evento descartado pela validação: {', '.join(result.reason_texts)}"),
+        )
+        summary.discarded += 1
+        return
+
+    if _persist(db, raw, parsed, summary, status="active", log_status=STATUS_PROCESSADO):
+        summary.processed += 1
 
 
 def _fallback_ia(
@@ -167,8 +191,8 @@ def _fallback_ia(
     payload = asdict(parsed)
     result = evaluate(payload)
     if result.decision is ValidationDecision.PUBLICAR:
-        _persist(db, raw, parsed, summary, status="active", log_status=STATUS_PROCESSADO_IA)
-        summary.processed_ia += 1
+        if _persist(db, raw, parsed, summary, status="active", log_status=STATUS_PROCESSADO_IA):
+            summary.processed_ia += 1
         return
 
     _log(
@@ -189,19 +213,30 @@ def _persist(
     *,
     status: str,
     log_status: str,
-) -> None:
+) -> bool:
+    title = parsed.title[:200].rstrip()
+    location = parsed.location[:200].rstrip()
+    link = parsed.registration_link if len(parsed.registration_link) <= 500 else ""
     event = Event(
-        title=parsed.title,
-        description=parsed.description or parsed.title,
+        title=title,
+        description=parsed.description or title,
         date=parsed.date,
         time=parsed.time,
-        location=parsed.location,
+        location=location,
         event_type=parsed.event_type,
-        registration_link=parsed.registration_link,
+        registration_link=link,
         status=status,
         origin="email",
     )
-    event = event_repository.create(db, event)
+    try:
+        event = event_repository.create(db, event)
+    except Exception as exc:
+        # BE-136: rollback garante que a sessão siga utilizável para os próximos e-mails.
+        db.rollback()
+        _log(db, raw, STATUS_ERRO, error_message=_short(exc))
+        summary.errors += 1
+        return False
+
     _log(
         db,
         raw,
@@ -209,6 +244,7 @@ def _persist(
         extracted_data=json.dumps(asdict(parsed), default=str, ensure_ascii=False),
         event_id=event.id,
     )
+    return True
 
 
 def _log(

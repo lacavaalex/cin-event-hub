@@ -12,16 +12,14 @@ completo de monitoramento é a US 4.3.
 
 from dataclasses import asdict
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_admin
 from app.database import get_db
-from app.repositories import extraction_log_repository
 from app.schemas.extracao import ExtractionAlertRead, ExtractionRunResponse
 from app.services.extracao_email.extraction_service import (
-    STATUS_EXTRACAO_INCOMPLETA,
-    STATUS_NAO_PROCESSADO,
+    list_alerts as get_extraction_alerts,
     run_extraction,
 )
 
@@ -51,15 +49,14 @@ def run(db: Session = Depends(get_db)):
     response_model=list[ExtractionAlertRead],
     dependencies=[Depends(get_current_admin)],
 )
-def list_alerts(limit: int = 50, db: Session = Depends(get_db)):
+def list_alerts(
+    limit: int = Query(50, ge=1, le=200, description="Máximo de alertas retornados"),
+    db: Session = Depends(get_db),
+):
     """Lista os e-mails não publicados para curadoria do administrador.
 
     Critério de aceite da US 4.2 (alerta ao administrador) + US 4.4 (eventos
     descartados pela validação autónoma). Inclui o status legado
     ``nao_processado`` para registos anteriores à validação. Exige token JWT.
     """
-    return extraction_log_repository.list_by_statuses(
-        db,
-        [STATUS_EXTRACAO_INCOMPLETA, STATUS_NAO_PROCESSADO],
-        limit,
-    )
+    return get_extraction_alerts(db, limit=limit)

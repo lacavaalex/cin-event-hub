@@ -47,3 +47,12 @@ def list_by_statuses(
         .limit(limit)
         .all()
     )
+
+
+def unlink_event(db: Session, event_id: int) -> None:
+    """Desvincula logs associados a um evento que será excluído (preserva histórico)."""
+    (
+        db.query(ExtractionLog)
+        .filter(ExtractionLog.event_id == event_id)
+        .update({"event_id": None})
+    )
