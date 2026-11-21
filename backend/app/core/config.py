@@ -32,7 +32,7 @@ EXTRACTION_ENABLED: bool = os.getenv("EXTRACTION_ENABLED", "true").lower() in {
     "1", "true", "yes", "on"
 }
 EXTRACTION_INTERVAL_MINUTES: int = int(
-    os.getenv("EXTRACTION_INTERVAL_MINUTES", "15")
+    os.getenv("EXTRACTION_INTERVAL_MINUTES", "720")
 )
 GMAIL_CREDENTIALS_FILE: str = os.getenv(
     "GMAIL_CREDENTIALS_FILE", "./gmail_credentials.json"
