@@ -18,8 +18,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy.orm import Session
 
 from app.models.event import Event
-from app.models.extraction_log import ExtractionLog
-from app.repositories import event_repository
+from app.repositories import event_repository, extraction_log_repository
 
 logger = logging.getLogger(__name__)
 
@@ -99,9 +98,7 @@ def clean_expired_events(
         event_date = event.date
 
         # Desvincula registros de log de extração de e-mails para preservar histórico
-        db.query(ExtractionLog).filter(ExtractionLog.event_id == event_id).update(
-            {"event_id": None}
-        )
+        extraction_log_repository.unlink_event(db, event_id)
 
         db.delete(event)
         deleted_ids.append(event_id)

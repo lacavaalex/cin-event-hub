@@ -3,6 +3,7 @@
 POST /events                   → cria evento (US 2.1, protegida por JWT)
 GET  /events?page=&page_size=  → lista eventos ativos paginados (US 3.1, IESI-70, pública)
 GET  /events/admin             → lista todos os eventos (US 2.4, protegida por JWT)
+GET  /events/favorites         → lista favoritos ativos do aluno (US 6.2)
 GET  /events/{id}              → busca evento por ID (US 2.2)
 PUT  /events/{id}              → edita evento (US 2.2, protegida por JWT)
 DELETE /events/{id}            → exclui evento (US 2.3, protegida por JWT)
@@ -116,7 +117,16 @@ def list_admin(db: Session = Depends(get_db)):
     ]
 
 
-# -- Favoritos (US 6.1) --
+# -- Favoritos (US 6.1 / 6.2) --
+
+@router.get("/favorites", response_model=list[EventRead])
+def list_favorites(
+    db: Session = Depends(get_db),
+    user_id: int = Depends(get_current_user_id),
+):
+    """Lista os eventos ativos e não expirados favoritados pelo aluno (US 6.2)."""
+    return service.list_favorite_events(db, user_id)
+
 
 @router.post("/{event_id}/favorite", response_model=FavoriteStatus)
 def favorite_event(

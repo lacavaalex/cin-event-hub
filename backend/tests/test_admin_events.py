@@ -12,10 +12,11 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.core.security import create_access_token
+from app.core.security import create_access_token, hash_password
 from app.database import get_db
 from app.main import app
 from app.models.event import Event
+from app.repositories import user_repository
 from app.services.events.cleanup_service import LOCAL_TZ
 
 
@@ -49,6 +50,15 @@ def _criar_evento(
 
 @pytest.fixture()
 def admin_client(db_session: Session):
+    # get_current_admin confere no banco: o admin precisa existir em ``usuario``.
+    user_repository.create(
+        db_session,
+        name="Admin",
+        email="admin@cin.ufpe.br",
+        hashed_password=hash_password("123456"),
+        profile_name="admin",
+        is_admin=True,
+    )
     app.dependency_overrides[get_db] = lambda: db_session
     client = TestClient(app)
     token = create_access_token({"sub": "admin@cin.ufpe.br"})
