@@ -9,7 +9,7 @@ NoReferencedTableError e a aplicação não sobe.
 
 import datetime as dt
 
-from sqlalchemy import Boolean, Date, String, func
+from sqlalchemy import Boolean, Date, String, text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -25,5 +25,7 @@ class User(Base):
     profile_name: Mapped[str] = mapped_column("nome_perfil", String(50))
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     created_at: Mapped[dt.date] = mapped_column(
-        "dt_cadastro", Date, server_default=func.current_date()
+        "dt_cadastro",
+        Date,
+        server_default=text("(CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '-03:00')::date"),
     )

@@ -25,13 +25,13 @@ INSERT INTO events (title, description, int_event_date, int_event_time, event_lo
                     event_type, registration_link, capacity, end_event_date, end_event_time)
 SELECT v.title,
        v.description,
-       CURRENT_DATE + v.dias,
+       (CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '-03:00')::date + v.dias,
        v.hora::time,
        v.location,
        v.event_type,
        v.link,
        v.capacity::int,
-       CURRENT_DATE + v.fim_dias::int,
+       (CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '-03:00')::date + v.fim_dias::int,
        v.hora_fim::time
 FROM (VALUES
     ('Palestra de Abertura do Semestre',

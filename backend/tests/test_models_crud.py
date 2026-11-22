@@ -5,6 +5,7 @@ Complementa os testes SQL de ``database/tests``: aqui o caminho é o do backend
 """
 
 import datetime as dt
+from zoneinfo import ZoneInfo
 
 import pytest
 from sqlalchemy import select, text
@@ -14,6 +15,8 @@ from app.models.event import Event
 from app.models.events.models import Favorite
 from app.models.extraction_log import ExtractionLog
 from app.models.user import User
+
+LOCAL_TZ = ZoneInfo("America/Recife")
 
 
 def _usuario(db, email="ana@cin.ufpe.br", **extra):
@@ -51,7 +54,15 @@ def test_usuario_defaults_do_banco(db_session):
     db_session.refresh(usuario)
     assert usuario.id >= 1
     assert usuario.is_admin is False
-    assert usuario.created_at == dt.date.today()
+    assert usuario.created_at == dt.datetime.now(LOCAL_TZ).date()
+
+
+@pytest.mark.parametrize("tz_offset", ["+00:00", "+14:00", "-11:00"])
+def test_usuario_dt_cadastro_usa_fuso_recife_independente_da_sessao(db_session, tz_offset):
+    db_session.execute(text(f"SET LOCAL TIME ZONE INTERVAL '{tz_offset}'"))
+    usuario = _usuario(db_session, email=f"tz-{tz_offset.replace(':', '')}@cin.ufpe.br")
+    db_session.refresh(usuario)
+    assert usuario.created_at == dt.datetime.now(LOCAL_TZ).date()
 
 
 def test_usuario_email_duplicado_e_recusado(db_session):

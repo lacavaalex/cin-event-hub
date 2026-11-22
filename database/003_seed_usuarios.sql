@@ -27,7 +27,7 @@ SELECT v.nome,
        v.senha_hash,
        v.nome_perfil,
        v.is_admin::boolean,
-       CURRENT_DATE - v.dias_atras
+       (CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '-03:00')::date - v.dias_atras
 FROM (VALUES
     ('Ana Beatriz Lima',
      'ana.lima@example.com',

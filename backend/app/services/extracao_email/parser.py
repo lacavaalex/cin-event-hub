@@ -14,6 +14,9 @@ import datetime as dt
 import html
 import re
 from dataclasses import dataclass, field
+from zoneinfo import ZoneInfo
+
+LOCAL_TZ = ZoneInfo("America/Recife")
 
 # Campos sem os quais um evento não pode ser cadastrado (Gherkin da US 4.1).
 REQUIRED_FIELDS = ("title", "date", "time", "location")
@@ -130,7 +133,9 @@ def _extract_date(text: str) -> dt.date | None:
         month = _MONTHS.get(month_word)
         if month is None:
             continue
-        return _safe_date(int(year) if year else dt.date.today().year, month, int(day))
+        return _safe_date(
+            int(year) if year else dt.datetime.now(LOCAL_TZ).year, month, int(day)
+        )
     return None
 
 

@@ -64,9 +64,13 @@ VALUES ('m1', 'sec@cin.ufpe.br', 'ignorado', 'e-mail sem dados obrigatórios: da
 SELECT pg_temp.deve_inserir('usuário aluno válido', $q$
     INSERT INTO usuario (nome, email, senha_hash, nome_perfil)
     VALUES ('Maria', 'maria@cin.ufpe.br', 'hash', 'maria')$q$);
-SELECT pg_temp.verificar('valores padrão do usuário: não é admin e data de cadastro é hoje',
-    (SELECT is_admin = FALSE AND dt_cadastro = CURRENT_DATE
+SELECT pg_temp.verificar('valores padrão do usuário: não é admin e data de cadastro é hoje (Recife UTC-3)',
+    (SELECT is_admin = FALSE
+        AND dt_cadastro = (CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '-03:00')::date
      FROM usuario WHERE email = 'maria@cin.ufpe.br'));
+SELECT pg_temp.verificar('virada do dia em Recife (UTC-3) ocorre às 03:00 UTC',
+    (TIMESTAMPTZ '2026-11-22 02:59:59+00' AT TIME ZONE INTERVAL '-03:00')::date = DATE '2026-11-21'
+    AND (TIMESTAMPTZ '2026-11-22 03:00:00+00' AT TIME ZONE INTERVAL '-03:00')::date = DATE '2026-11-22');
 SELECT pg_temp.deve_falhar('e-mail de usuário repetido', $q$
     INSERT INTO usuario (nome, email, senha_hash, nome_perfil)
     VALUES ('Outro', 'aluno@cin.ufpe.br', 'x', 'outro')$q$,
