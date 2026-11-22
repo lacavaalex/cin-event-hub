@@ -7,6 +7,7 @@ que protege as rotas de administrador.
 """
 
 import datetime as dt
+from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi.testclient import TestClient
@@ -17,6 +18,8 @@ from app.main import app
 from app.models.event import Event
 from app.repositories import user_repository
 from app.services import auth_service
+
+LOCAL_TZ = ZoneInfo("America/Recife")
 
 SENHA = "senha-forte-123"
 
@@ -45,7 +48,7 @@ def _evento_payload():
     return {
         "title": "Palestra de IA",
         "description": "Descrição",
-        "date": (dt.date.today() + dt.timedelta(days=30)).isoformat(),
+        "date": (dt.datetime.now(LOCAL_TZ).date() + dt.timedelta(days=30)).isoformat(),
         "time": "10:00:00",
         "location": "CIn",
         "event_type": "Palestra",
@@ -67,7 +70,7 @@ def test_repositorio_cria_admin_na_tabela_usuario(db_session):
     db_session.refresh(admin)
     assert admin.id >= 1
     assert admin.is_admin is True
-    assert admin.created_at == dt.date.today()
+    assert admin.created_at == dt.datetime.now(LOCAL_TZ).date()
 
 
 def test_get_admin_by_email_ignora_usuario_comum(db_session):

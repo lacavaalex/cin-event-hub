@@ -1,8 +1,9 @@
 import { useState } from "react";
+import { todayInRecife } from "../../services/upcomingEvents";
 
 const EVENT_TYPES = ["Palestra", "Workshop", "Hackathon", "Outro"];
 
-const todayISO = () => new Date().toLocaleDateString("sv-SE");
+const todayISO = () => todayInRecife();
 
 function validate(values, originalDate) {
   const errors = {};

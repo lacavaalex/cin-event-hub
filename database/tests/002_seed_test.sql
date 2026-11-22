@@ -27,9 +27,11 @@ SELECT pg_temp.verificar('6 palestras, 8 workshops, 4 hackathons e 2 do tipo Out
     AND (SELECT count(*) FROM events WHERE event_type = 'Outro')     = 2);
 
 SELECT pg_temp.verificar('nenhum evento no passado (a limpeza da US 5.1 não os apaga)',
-    (SELECT count(*) FROM events WHERE int_event_date < CURRENT_DATE) = 0);
+    (SELECT count(*) FROM events
+     WHERE int_event_date < (CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '-03:00')::date) = 0);
 SELECT pg_temp.verificar('um evento hoje',
-    (SELECT count(*) FROM events WHERE int_event_date = CURRENT_DATE) = 1);
+    (SELECT count(*) FROM events
+     WHERE int_event_date = (CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '-03:00')::date) = 1);
 SELECT pg_temp.verificar('um dia com 3 eventos (teste de ordenação por hora)',
     (SELECT max(c) FROM (SELECT count(*) AS c FROM events GROUP BY int_event_date) d) >= 3);
 

@@ -30,7 +30,7 @@ INSERT INTO events (title, description, int_event_date, int_event_time, event_lo
                     event_type, registration_link, capacity, origin)
 SELECT v.title,
        v.description,
-       CURRENT_DATE + v.dias,
+       (CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '-03:00')::date + v.dias,
        v.hora::time,
        v.location,
        v.event_type,
