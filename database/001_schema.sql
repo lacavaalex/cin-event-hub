@@ -87,15 +87,20 @@ CREATE TABLE extracao (
 
 	CONSTRAINT ck_extracao_gmail_message_id_preenchido CHECK (btrim(gmail_message_id) <> ''),
 	-- processado (parser) e processado_ia (Gemini) publicaram evento; ignorado, erro,
-	-- extracao_incompleta (validação recusou, US 4.4) e nao_processado (legado, US 4.2)
-	-- não. Os seis valores são os usados pelo extraction_service da develop.
+	-- extracao_incompleta (validação recusou, US 4.4), nao_processado (legado, US 4.2) e
+	-- ignorado_duplicata (rótulo "Ignorado - Duplicata/Lembrete", US 4.5) não.
+	-- Os sete valores são os usados pelo extraction_service desta branch.
 	CONSTRAINT ck_extracao_status
 		CHECK (status IN ('processado', 'processado_ia', 'ignorado', 'nao_processado',
-		                  'extracao_incompleta', 'erro')),
+		                  'extracao_incompleta', 'ignorado_duplicata', 'erro')),
 	-- só extração que publicou evento (processado ou processado_ia) tem event_id
 	CONSTRAINT ck_extracao_evento_so_processado
 		CHECK (event_id IS NULL OR status IN ('processado', 'processado_ia'))
 );
+
+COMMENT ON COLUMN extracao.status IS
+	'Valores: processado, processado_ia, ignorado, nao_processado, extracao_incompleta, '
+	'ignorado_duplicata (= "Ignorado - Duplicata/Lembrete", US 4.5), erro';
 
 CREATE TABLE favorito (
 	id_usuario	  	INTEGER		NOT NULL,

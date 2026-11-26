@@ -10,8 +10,9 @@ class ExtractionRunResponse(BaseModel):
     ignored: int
     unprocessed: int      # IA não extraiu campos obrigatórios (alerta ao admin)
     discarded: int        # validação autónoma descartou o evento (US 4.4)
+    reminders_ignored: int  # US 4.5: lembretes duplicados, sem novo evento
     errors: int
-    duplicates: int
+    duplicates: int       # mensagens Gmail repetidas (idempotência da US 4.1)
     message: str
 
 
