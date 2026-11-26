@@ -1,22 +1,26 @@
-"""Orquestração da extração automática de e-mails (US 4.1 + US 4.2 + US 4.4).
+"""Orquestração da extração automática de e-mails (US 4.1 + 4.2 + 4.4 + 4.5).
 
 Fluxo por e-mail ainda não processado (idempotência por ``message_id``):
 
-1. Parser estruturado (US 4.1). Se extrair os campos obrigatórios:
-   - cria ``Event`` (``origin="email"``, ``status="active"``) + log "processado".
+1. Parser estruturado (US 4.1). Se extrair os campos obrigatórios, segue para a
+   verificação de duplicata (item 4) antes de criar o ``Event``.
 2. Se faltarem dados, cai no **fallback de IA** (US 4.2), quando o Gemini está
    configurado:
    - IA identifica evento e extrai os campos → **validação autónoma (US 4.4 /
-     IESI-75)**: estrutura íntegra e data não passada → ``Event`` publicado
-     (``status="active"``) + log "processado_ia"; caso contrário o evento é
-     **silenciosamente descartado** + log "extracao_incompleta";
+     IESI-75)**: estrutura íntegra e data não passada → segue para a verificação
+     de duplicata (item 4); caso contrário o evento é **silenciosamente
+     descartado** + log "extracao_incompleta";
    - IA conclui que **não é evento** → log "ignorado";
    - IA confirma evento, mas faltam campos obrigatórios → descarte + log
      "extracao_incompleta" (contado em ``unprocessed``; alerta em
      ``GET /extraction/alerts``).
 3. Se a IA **não** está configurada, mantém o comportamento da US 4.1 (sem dados
    obrigatórios → "ignorado").
-4. Falhas inesperadas (incl. queda da API do Gemini) → log "erro".
+4. **Desduplicação de lembretes (US 4.5 / IESI-76 + IESI-77):** antes de
+   persistir, o repositório procura um evento ativo com título igual/similar e
+   mesma data. Se existir, **nenhum evento é criado** e o e-mail é registado com
+   o status "ignorado_duplicata" (rótulo "Ignorado - Duplicata/Lembrete").
+5. Falhas inesperadas (incl. queda da API do Gemini) → log "erro".
 
 Os registos "extracao_incompleta" alimentam o dashboard de monitorização
 (US 4.3) — o consumidor do dashboard fica fora deste escopo.
@@ -56,6 +60,8 @@ STATUS_PROCESSADO_IA = "processado_ia"
 STATUS_IGNORADO = "ignorado"
 STATUS_NAO_PROCESSADO = "nao_processado"   # legado (pré-US 4.4) — ainda listado nos alertas
 STATUS_EXTRACAO_INCOMPLETA = "extracao_incompleta"  # US 4.4: validação recusou
+STATUS_IGNORADO_DUPLICATA = "ignorado_duplicata"  # US 4.5: lembrete de evento ativo
+LABEL_IGNORADO_DUPLICATA = "Ignorado - Duplicata/Lembrete"
 STATUS_ERRO = "erro"
 
 _LOCAL_TZ = ZoneInfo("America/Recife")
@@ -81,8 +87,9 @@ class ExtractionSummary:
     ignored: int = 0
     unprocessed: int = 0    # IA não extraiu campos obrigatórios (alerta)
     discarded: int = 0      # validação autónoma descartou o evento (US 4.4)
+    reminders_ignored: int = 0  # US 4.5: lembrete duplicado, sem novo evento
     errors: int = 0
-    duplicates: int = 0
+    duplicates: int = 0     # mensagens Gmail já vistas (idempotência, US 4.1)
     message: str = ""
 
 
@@ -240,7 +247,9 @@ def _fallback_ia(
     payload = asdict(parsed)
     result = evaluate(payload)
     if result.decision is ValidationDecision.PUBLICAR:
-        if _persist(db, raw, parsed, summary, status="active", log_status=STATUS_PROCESSADO_IA):
+        if _persist(
+            db, raw, parsed, summary, status="active", log_status=STATUS_PROCESSADO_IA
+        ):
             summary.processed_ia += 1
         return
 
@@ -263,6 +272,33 @@ def _persist(
     status: str,
     log_status: str,
 ) -> bool:
+    """Publica o evento ou, se for lembrete (US 4.5), apenas regista o log.
+
+    Devolve ``True`` quando um evento foi criado, para que o chamador some o
+    contador correto (``processed``/``processed_ia``). A checagem fica aqui,
+    no único ponto de persistência, e por isso cobre tanto o parser (US 4.1)
+    quanto o Gemini (US 4.2) sem duplicar regra.
+    """
+    duplicata = event_repository.find_active_duplicate_by_title_and_date(
+        db, parsed.title, parsed.date
+    )
+    if duplicata is not None:
+        payload = asdict(parsed)
+        payload["duplicata_de"] = duplicata.id
+        payload["titulo_duplicata"] = duplicata.title
+        _log(
+            db,
+            raw,
+            STATUS_IGNORADO_DUPLICATA,
+            extracted_data=json.dumps(payload, default=str, ensure_ascii=False),
+            error_message=(
+                f"{LABEL_IGNORADO_DUPLICATA}: evento ativo {duplicata.id} "
+                f"em {duplicata.date.isoformat()} com o título {duplicata.title!r}"
+            ),
+        )
+        summary.reminders_ignored += 1
+        return False
+
     title = parsed.title[:200].rstrip()
     location = parsed.location[:200].rstrip()
     link = parsed.registration_link if len(parsed.registration_link) <= 500 else ""

@@ -41,13 +41,13 @@ SELECT pg_temp.verificar('há nome com acento e nome com mais de 40 caracteres',
 -- ---------------------------------------------------------------------
 -- extracao
 -- ---------------------------------------------------------------------
-SELECT pg_temp.verificar('7 extrações seed, e os 6 status do CHECK aparecem',
-    (SELECT count(*) FROM extracao WHERE gmail_message_id LIKE 'seed-msg-%') = 7
-    AND (SELECT count(DISTINCT status) FROM extracao) = 6);
+SELECT pg_temp.verificar('8 extrações seed, e os 7 status do CHECK aparecem',
+    (SELECT count(*) FROM extracao WHERE gmail_message_id LIKE 'seed-msg-%') = 8
+    AND (SELECT count(DISTINCT status) FROM extracao) = 7);
 SELECT pg_temp.verificar('2 processado, 1 processado_ia e 1 de cada um dos outros status',
     (SELECT count(*) FROM extracao WHERE status = 'processado') = 2
     AND (SELECT count(*) FROM extracao WHERE status = 'processado_ia') = 1
-    AND (SELECT count(*) FROM extracao WHERE status IN ('ignorado', 'nao_processado', 'extracao_incompleta', 'erro')) = 4);
+    AND (SELECT count(*) FROM extracao WHERE status IN ('ignorado', 'nao_processado', 'extracao_incompleta', 'ignorado_duplicata', 'erro')) = 5);
 SELECT pg_temp.verificar('só processado e processado_ia têm event_id, e o evento é de origem email',
     (SELECT bool_and((status IN ('processado', 'processado_ia')) = (event_id IS NOT NULL)) FROM extracao)
     AND (SELECT count(*) FROM extracao x JOIN events e ON e.id_event = x.event_id

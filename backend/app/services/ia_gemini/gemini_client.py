@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import os
 import re
 
 from app.core.config import GEMINI_API_KEY, GEMINI_MAX_OUTPUT_TOKENS, GEMINI_MODEL
@@ -31,25 +32,27 @@ class UnprocessableEventError(Exception):
 
 
 class GeminiClient:
-    """Fachada sobre o Gemini: converte um e-mail em :class:`ParsedEvent`."""
+    """Fachada sobre o Gemini via OpenRouter: converte um e-mail em :class:`ParsedEvent`."""
 
     def __init__(
         self,
-        api_key: str = GEMINI_API_KEY,
-        model: str = GEMINI_MODEL,
-        max_output_tokens: int = GEMINI_MAX_OUTPUT_TOKENS,
+        api_key: str | None = None,
+        model: str | None = None,
+        max_output_tokens: int | None = None,
     ) -> None:
-        self.api_key = api_key
-        self.model = model
-        self.max_output_tokens = max_output_tokens
+        # Lê a chave do OpenRouter no .env; se não existir, usa o fallback do config
+        self.api_key = api_key or os.getenv("OPENROUTER_API_KEY") or GEMINI_API_KEY
+        self.model = model or os.getenv("GEMINI_MODEL") or GEMINI_MODEL
+        self.max_output_tokens = max_output_tokens or GEMINI_MAX_OUTPUT_TOKENS
+        self.base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
 
     def is_configured(self) -> bool:
-        """Indica se há chave do Gemini configurada no servidor."""
+        """Indica se há chave de IA configurada no servidor."""
         return bool(self.api_key)
 
     # ── API pública ───────────────────────────────────────────────────
     def extract_event(self, subject: str, body: str) -> ParsedEvent:
-        """Extrai o evento do e-mail via Gemini ou levanta uma das exceções."""
+        """Extrai o evento do e-mail via IA ou levanta uma das exceções."""
         from app.services.ia_gemini.prompt import build_prompt
 
         raw = self._generate(build_prompt(subject, body))
@@ -62,33 +65,44 @@ class GeminiClient:
 
     # ── internos ──────────────────────────────────────────────────────
     def _generate(self, prompt: str) -> str:
-        """Chama o Gemini. Isolado para permitir substituição em testes."""
+        """Chama a IA via OpenRouter usando o padrão OpenAI."""
         try:
-            from google import genai
-            from google.genai import types
-        except ImportError as exc:  # dependência só é necessária em produção
+            from openai import OpenAI
+        except ImportError as exc:
             raise GeminiExtractionError(
-                "google-genai não instalado — pip install -r requirements.txt"
+                "openai não instalado — rode pip install openai"
             ) from exc
 
         from app.services.ia_gemini.prompt import RESPONSE_SCHEMA, SYSTEM_INSTRUCTION
 
         try:
-            client = genai.Client(api_key=self.api_key)
-            response = client.models.generate_content(
-                model=self.model,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=SYSTEM_INSTRUCTION,
-                    response_mime_type="application/json",
-                    response_schema=RESPONSE_SCHEMA,
-                    max_output_tokens=self.max_output_tokens,
-                    temperature=0.0,
-                ),
+            client = OpenAI(
+                base_url=self.base_url,
+                api_key=self.api_key,
             )
+
+            messages = [
+                {
+                    "role": "system",
+                    "content": (
+                        f"{SYSTEM_INSTRUCTION}\n\n"
+                        "IMPORTANTE: Retorne APENAS um objeto JSON válido, sem texto adicional, "
+                        f"seguindo estritamente este esquema: {RESPONSE_SCHEMA}"
+                    ),
+                },
+                {"role": "user", "content": prompt},
+            ]
+
+            response = client.chat.completions.create(
+                model=self.model,
+                messages=messages,
+                max_tokens=self.max_output_tokens,
+                temperature=0.0,
+            )
+            return response.choices[0].message.content or ""
+
         except Exception as exc:  # rede/quota/modelo — tratado como falha operacional
             raise GeminiExtractionError(str(exc)) from exc
-        return (response.text or "").strip()
 
     @staticmethod
     def _parse_json(raw: str) -> dict:
