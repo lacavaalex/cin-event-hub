@@ -49,8 +49,8 @@ from app.services.ia_gemini.gemini_client import (
 from app.services.validacao import LOCAL_TZ
 
 EMAIL_OK = (
-    "Palestra de Segurança 2026\n"
-    "Data: 25/11/2025\n"
+    "Palestra de Segurança 2030\n"
+    "Data: 25/11/2030\n"
     "Hora: 14h\n"
     "Local: Auditório do CIn\n"
     "Mais detalhes na página do evento."
@@ -104,7 +104,7 @@ def test_email_completo_e_persistido_com_log(db_session):
 
     event = db_session.query(Event).one()
     assert event.title == "Palestra de Segurança 2026"
-    assert event.date == dt.date(2025, 11, 25)
+    assert event.date == dt.date(2030, 11, 25)
     assert event.time == dt.time(14, 0)
     assert event.location == "Auditório do CIn"
     assert event.origin == "email"

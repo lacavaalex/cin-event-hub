@@ -105,8 +105,8 @@ class GeminiClient:
     def _to_parsed_event(data: dict) -> ParsedEvent:
         date = GeminiClient._parse_date(data.get("date"))
         time_ = GeminiClient._parse_time(data.get("time"))
-        title = str(data.get("title") or "").strip()
-        location = str(data.get("location") or "").strip()
+        title = str(data.get("title") or "").strip()[:200].rstrip()
+        location = str(data.get("location") or "").strip()[:200].rstrip()
 
         values = {"title": title, "date": date, "time": time_, "location": location}
         missing = [name for name, value in values.items() if not value]
@@ -118,7 +118,7 @@ class GeminiClient:
             event_type = "Outro"
 
         link = str(data.get("registration_link") or "").strip()
-        if not link.lower().startswith(("http://", "https://")):
+        if not link.lower().startswith(("http://", "https://")) or len(link) > 500:
             link = ""
 
         description = str(data.get("description") or "").strip() or title

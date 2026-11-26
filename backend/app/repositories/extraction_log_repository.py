@@ -1,7 +1,9 @@
 """Repositório dos logs de extração de e-mails (US 4.1)."""
 
+import datetime as dt
 from collections.abc import Sequence
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.models.extraction_log import ExtractionLog
@@ -47,3 +49,27 @@ def list_by_statuses(
         .limit(limit)
         .all()
     )
+
+
+def unlink_event(db: Session, event_id: int) -> None:
+    """Desvincula logs associados a um evento que será excluído (preserva histórico)."""
+    (
+        db.query(ExtractionLog)
+        .filter(ExtractionLog.event_id == event_id)
+        .update({"event_id": None})
+    )
+
+
+def count_by_status(db: Session) -> dict[str, int]:
+    """Agrupa a contagem de logs por status (base do painel US 4.3)."""
+    rows = (
+        db.query(ExtractionLog.status, func.count(ExtractionLog.id))
+        .group_by(ExtractionLog.status)
+        .all()
+    )
+    return {status: int(total) for status, total in rows}
+
+
+def get_last_created_at(db: Session) -> dt.datetime | None:
+    """Retorna o timestamp do log de extração mais recente, se houver."""
+    return db.query(func.max(ExtractionLog.created_at)).scalar()

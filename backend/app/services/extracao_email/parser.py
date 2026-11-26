@@ -14,6 +14,9 @@ import datetime as dt
 import html
 import re
 from dataclasses import dataclass, field
+from zoneinfo import ZoneInfo
+
+LOCAL_TZ = ZoneInfo("America/Recife")
 
 # Campos sem os quais um evento não pode ser cadastrado (Gherkin da US 4.1).
 REQUIRED_FIELDS = ("title", "date", "time", "location")
@@ -35,11 +38,14 @@ _MONTHS = {
 _DATE_TEXT = re.compile(
     r"\b(\d{1,2})\s+de\s+([a-zç]+)(?:\s+de\s+(\d{4}))?\b", re.I
 )
-_TIME = re.compile(r"\b(\d{1,2})(?::|h)(\d{2})?\s*(?:h|hs|horas)?", re.I)
+_TIME = re.compile(
+    r"\b(\d{1,2})(?:(?::|h)(\d{2})?\s*(?:h|hs|horas)?|\s+(?:h|hs|horas))\b",
+    re.I,
+)
 _LINK = re.compile(r"https?://[^\s<>\"')]+", re.I)
-_LINK_EXTRACT = re.compile(r"\b(https?://[^\s<>\"')]+)(?=[),.;]?\s|$)", re.I)
+_LINK_EXTRACT = re.compile(r"https?://[^\s<>\"')]+", re.I)
 _TITLE_PREFIX = re.compile(
-    r"^\s*(?:re|fwd|fw|enc[:.]?|encaminhado|convite|convoca[çc][ãa]o|alerta|aviso|n[oó]tice)\s*:\s*",
+    r"^\s*(?:re|fwd|fw|enc[:.]?|encaminhado|convite|convoca[çc][ãa]o|divulga[çc][ãa]o|alerta|aviso|n[oó]tice)\s*:\s*",
     re.I,
 )
 _BRACKET_TAG = re.compile(r"^\s*\[[^\]]*\]\s*")
@@ -103,7 +109,7 @@ def _extract_title(subject: str, body: str) -> str:
         title = new
     title = title.strip(" \t-–:()[]")
     if title:
-        return title
+        return title[:200].rstrip()
     for line in (body or "").splitlines():
         line = _clean(line).strip()
         if line:
@@ -127,7 +133,9 @@ def _extract_date(text: str) -> dt.date | None:
         month = _MONTHS.get(month_word)
         if month is None:
             continue
-        return _safe_date(int(year) if year else dt.date.today().year, month, int(day))
+        return _safe_date(
+            int(year) if year else dt.datetime.now(LOCAL_TZ).year, month, int(day)
+        )
     return None
 
 
@@ -168,11 +176,17 @@ def _extract_type(subject: str, body: str) -> str:
     return "Outro"
 
 
+_LINK_MAX = 500
+
+
 def _first_link(subject: str, body: str) -> str:
     m = _LINK_EXTRACT.search(_clean(f"{subject}\n{body}"))
     if not m:
         return ""
-    return m.group(0).rstrip("),.;")
+    link = m.group(0).rstrip("),.;:!?]")
+    if len(link) > _LINK_MAX:
+        return ""
+    return link
 
 
 def _extract_description(title: str, body: str) -> str:

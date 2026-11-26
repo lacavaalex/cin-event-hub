@@ -3,7 +3,7 @@
 O repositório é mockado (pytest-mock): aqui só se testa a regra do serviço —
 cálculo do offset e do total de páginas.
 """
-from unittest.mock import MagicMock
+from unittest.mock import ANY, MagicMock
 
 import pytest
 
@@ -27,7 +27,7 @@ class TestListEvents:
 
         pagina = event_service.list_events(db)
 
-        get_all.assert_called_once_with(db, limit=20, offset=0)
+        get_all.assert_called_once_with(db, limit=20, offset=0, min_date=ANY)
         assert pagina.page == 1
 
     def test_offset_e_calculado_a_partir_da_pagina(self, db, mocker):
@@ -35,7 +35,7 @@ class TestListEvents:
 
         event_service.list_events(db, page=3, page_size=10)
 
-        get_all.assert_called_once_with(db, limit=10, offset=20)
+        get_all.assert_called_once_with(db, limit=10, offset=20, min_date=ANY)
 
     @pytest.mark.parametrize(
         "total, page_size, esperado",

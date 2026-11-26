@@ -1,0 +1,36 @@
+.favorites-page {
+  --ink: #111111;
+  --red: #c8102e;
+  --surface: #ffffff;
+  --line: rgb(17 17 17 / 0.12);
+
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 64px 16px;
+  color: var(--ink);
+}
+
+.favorites-page h1 {
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  margin: 0 0 12px;
+}
+
+.favorites-lead { font-size: 1.125rem; margin: 0 0 32px; }
+.favorites-empty {
+  padding: 48px 24px;
+  text-align: center;
+  font-size: 1.25rem;
+  background: var(--surface);
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  box-shadow: 4px 4px 0 var(--ink);
+}
+.favorites-id { font-size: 0.875rem; margin: 24px 0; }
+.favorites-id code { background: rgb(17 17 17 / 0.06); padding: 2px 6px; border-radius: 4px; }
+.favorites-back {
+  color: var(--red);
+  font-weight: 700;
+}
+.favorites-page :focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }

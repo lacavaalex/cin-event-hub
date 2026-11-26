@@ -33,3 +33,30 @@ class ExtractionAlertRead(BaseModel):
     status: str
     error_message: str | None
     created_at: dt.datetime
+
+
+class ExtractionLogItem(BaseModel):
+    """Item minimizado de log exibido no painel de status (US 4.3, LGPD)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    gmail_message_id: str
+    source_email: str
+    status: str
+    error_message: str | None
+    event_id: int | None
+    created_at: dt.datetime
+
+
+class ExtractionStatusResponse(BaseModel):
+    """Resumo operacional da extração de e-mails (US 4.3 / BE-160)."""
+
+    total_logs: int
+    total_processed: int
+    counts_by_status: dict[str, int]
+    last_run_at: dt.datetime | None
+    last_run_failed: bool
+    last_error: str | None
+    recent_processed: list[ExtractionLogItem]
+    recent_errors: list[ExtractionLogItem]

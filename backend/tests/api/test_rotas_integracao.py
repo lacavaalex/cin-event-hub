@@ -10,6 +10,7 @@ realmente foi gravado, para provar a ligação rota ↔ tabela:
 """
 
 import datetime as dt
+from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi.testclient import TestClient
@@ -25,7 +26,7 @@ from app.services.extracao_email.gmail_client import RawEmail
 
 EMAIL_ADMIN, SENHA_ADMIN = "admin@cin.ufpe.br", "123456"
 NOME_ADMIN, PERFIL_ADMIN = "Administrador", "admin"
-FUTURO = (dt.date.today() + dt.timedelta(days=30)).isoformat()
+FUTURO = (dt.datetime.now(ZoneInfo("America/Recife")).date() + dt.timedelta(days=30)).isoformat()
 
 
 @pytest.fixture()

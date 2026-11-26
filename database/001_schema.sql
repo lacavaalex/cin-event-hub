@@ -5,7 +5,9 @@ CREATE TABLE usuario (
 	senha_hash 		VARCHAR(100)	NOT NULL,
 	nome_perfil 	VARCHAR(50)		NOT NULL,
 	is_admin 		BOOLEAN 		NOT NULL DEFAULT FALSE,
-	dt_cadastro		DATE			NOT NULL DEFAULT CURRENT_DATE,
+	-- Data de cadastro no fuso fixo de Recife (UTC-3, sem horário de verão):
+	-- independe do TimeZone da sessão e de arquivos tzdata no servidor PostgreSQL.
+	dt_cadastro		DATE			NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '-03:00')::date,
 
 	CONSTRAINT pk_usuario PRIMARY KEY (id_usuario),
 	CONSTRAINT uk_usuario_email UNIQUE (email),

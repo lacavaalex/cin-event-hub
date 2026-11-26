@@ -1,3 +1,5 @@
+import { addDays, todayInRecife } from './upcomingEvents';
+
 const API_URL = import.meta.env.VITE_API_URL;
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
@@ -19,14 +21,20 @@ export function sortByDate(events) {
   );
 }
 
-export async function getEvents() {
+export async function getEvents({ page = 1, pageSize } = {}) {
+  const params = new URLSearchParams();
+  if (page !== 1) params.set('page', String(page));
+  if (pageSize) params.set('page_size', String(pageSize));
+  const query = params.toString() ? `?${params}` : '';
+
   if (USE_MOCK) {
     await new Promise((r) => setTimeout(r, 400));
-    return MOCK_EVENTS;
+    const size = pageSize ?? MOCK_EVENTS.length;
+    return MOCK_EVENTS.slice((page - 1) * size, page * size);
   }
   let res;
   try {
-    res = await fetch(`${API_URL}/events`);
+    res = await fetch(`${API_URL}/events${query}`);
   } catch {
     throw new Error('Erro de conexão. Tente novamente.');
   }
@@ -84,6 +92,42 @@ MOCK_EVENTS.push(
     type: ['Workshop', 'Minicurso', 'Hackathon'][i % 3],
     registration_link: 'https://example.com/encontro',
   }))
+);
+
+// Eventos relativos a hoje para que a faixa "Esta semana" (US 3.7) seja
+// demonstrável em VITE_USE_MOCK=true, independentemente da data da máquina.
+const MOCK_TODAY = todayInRecife();
+MOCK_EVENTS.push(
+  {
+    id: 200,
+    title: 'Palestra de Dados Abertos',
+    description: 'Usos de dados públicos no CIn.',
+    date: MOCK_TODAY,
+    time: '09:30',
+    location: 'Auditório do CIn',
+    type: 'Palestra',
+    registration_link: 'https://example.com/dados-abertos',
+  },
+  {
+    id: 201,
+    title: 'Workshop de Testes Automatizados',
+    description: 'Da primeira asserção à integração contínua.',
+    date: addDays(MOCK_TODAY, 2),
+    time: '14:00',
+    location: 'Laboratório G4',
+    type: 'Workshop',
+    registration_link: 'https://example.com/testes',
+  },
+  {
+    id: 202,
+    title: 'Hackathon Relâmpago',
+    description: 'Seis horas para prototipar uma ideia.',
+    date: addDays(MOCK_TODAY, 5),
+    time: '18:00',
+    location: 'Térreo do CIn',
+    type: 'Hackathon',
+    registration_link: 'https://example.com/hackathon-relampago',
+  }
 );
 
 export const TYPE_FILTERS = [

@@ -30,7 +30,10 @@ SELECT pg_temp.verificar('5 usuários: 2 administradores e 3 comuns',
 SELECT pg_temp.verificar('todos os e-mails dos usuários são de example.com',
     (SELECT bool_and(email LIKE '%@example.com') FROM usuario));
 SELECT pg_temp.verificar('datas de cadastro nos últimos 90 dias e nunca no futuro',
-    (SELECT bool_and(dt_cadastro <= CURRENT_DATE AND dt_cadastro >= CURRENT_DATE - 90) FROM usuario));
+    (SELECT bool_and(
+        dt_cadastro <= (CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '-03:00')::date
+        AND dt_cadastro >= (CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '-03:00')::date - 90
+    ) FROM usuario));
 SELECT pg_temp.verificar('há nome com acento e nome com mais de 40 caracteres',
     (SELECT count(*) FROM usuario WHERE nome LIKE '%ú%') >= 1
     AND (SELECT max(length(nome)) FROM usuario) > 40);
@@ -51,7 +54,10 @@ SELECT pg_temp.verificar('só processado e processado_ia têm event_id, e o even
          WHERE e.origin = 'email') = 3);
 SELECT pg_temp.verificar('3 eventos de e-mail, ativos e no futuro, um deles sem link de inscrição',
     (SELECT count(*) FROM events WHERE origin = 'email') = 3
-    AND (SELECT bool_and(status = 'active' AND int_event_date > CURRENT_DATE) FROM events WHERE origin = 'email')
+    AND (SELECT bool_and(
+        status = 'active'
+        AND int_event_date > (CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '-03:00')::date
+    ) FROM events WHERE origin = 'email')
     AND (SELECT count(*) FROM events WHERE origin = 'email' AND registration_link = '') = 1);
 SELECT pg_temp.verificar('o seed de eventos manuais continua com 20 eventos',
     (SELECT count(*) FROM events WHERE origin = 'manual') = 20);
