@@ -2,7 +2,7 @@
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
   min-height: 100vh;
-  background: #f7f5f0;
+  background: var(--page);
 }
 
 .admin-sidebar {
@@ -10,8 +10,8 @@
   flex-direction: column;
   gap: 32px;
   padding: 24px 16px;
-  background: #111;
-  color: #fff;
+  background: var(--sidebar-bg);
+  color: var(--sidebar-heading);
 }
 
 .admin-brand-kicker {
@@ -20,7 +20,7 @@
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #a1a1aa;
+  color: var(--sidebar-muted);
 }
 
 .admin-brand-title {
@@ -45,7 +45,7 @@
   border: 0;
   border-radius: 6px;
   background: transparent;
-  color: #d4d4d8;
+  color: var(--sidebar-text);
   font: inherit;
   font-weight: 600;
   text-align: left;
@@ -54,13 +54,13 @@
 }
 
 .admin-nav-link:hover {
-  background: #27272a;
-  color: #fff;
+  background: var(--sidebar-hover);
+  color: var(--sidebar-heading);
 }
 
 .admin-nav-link.active {
   background: var(--red);
-  color: #fff;
+  color: var(--on-color);
 }
 
 .admin-nav-button {
@@ -68,7 +68,7 @@
 }
 
 .admin-sidebar :focus-visible {
-  outline: 3px solid var(--red);
+  outline: 3px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -100,3 +100,12 @@
     padding: 20px 16px 40px;
   }
 }
+
+.admin-sidebar .theme-toggle {
+  width: 100%;
+  background: var(--sidebar-hover);
+  color: var(--sidebar-heading);
+  border-color: var(--sidebar-muted);
+}
+.admin-sidebar .theme-toggle:hover { background: var(--red); color: var(--on-color); }
+@media (max-width: 760px) { .admin-sidebar .theme-toggle { width: auto; align-self: flex-start; } }

@@ -36,6 +36,13 @@ def _seed_admin() -> None:
     flag ``is_admin``. Se já existir um usuário com o e-mail configurado, nada é
     alterado (um usuário comum não é promovido automaticamente).
     """
+    # Nao cria administradores usando credenciais padrao de demonstracao.
+    # Uma conta ja existente permanece no banco e pode fazer login normalmente.
+    if not ADMIN_EMAIL and not ADMIN_PASSWORD:
+        return
+    if not ADMIN_EMAIL or not ADMIN_PASSWORD:
+        raise RuntimeError("Configure ADMIN_EMAIL e ADMIN_PASSWORD juntos para criar o admin inicial")
+
     db = SessionLocal()
     try:
         existing = user_repository.get_by_email(db, ADMIN_EMAIL)

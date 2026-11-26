@@ -1,9 +1,4 @@
 .favorites-page {
-  --ink: #111111;
-  --red: #c8102e;
-  --surface: #ffffff;
-  --line: rgb(17 17 17 / 0.12);
-
   max-width: 800px;
   margin: 0 auto;
   padding: 64px 16px;
@@ -25,12 +20,12 @@
   background: var(--surface);
   border: 2px solid var(--ink);
   border-radius: 4px;
-  box-shadow: 4px 4px 0 var(--ink);
+  box-shadow: 4px 4px 0 var(--shadow-color);
 }
 .favorites-id { font-size: 0.875rem; margin: 24px 0; }
-.favorites-id code { background: rgb(17 17 17 / 0.06); padding: 2px 6px; border-radius: 4px; }
+.favorites-id code { background: var(--surface-soft); padding: 2px 6px; border-radius: 4px; }
 .favorites-back {
-  color: var(--red);
+  color: var(--accent-text);
   font-weight: 700;
 }
-.favorites-page :focus-visible { outline: 3px solid var(--red); outline-offset: 2px; }
+.favorites-page :focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }

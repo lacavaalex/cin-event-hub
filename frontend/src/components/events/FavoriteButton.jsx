@@ -32,8 +32,7 @@ export default function FavoriteButton({ eventId, initialIsFavorited = false, on
       disabled={isSaving}
       aria-pressed={isFavorited}
       aria-label={isFavorited ? "Remover dos favoritos" : "Adicionar aos favoritos"}
-      className={`rounded-full p-2 text-lg leading-none transition-colors disabled:opacity-50
-        ${isFavorited ? "text-yellow-500 hover:text-yellow-600" : "text-gray-400 hover:text-gray-600"}`}
+      className={`favorite-button${isFavorited ? ' is-favorited' : ''}`}
     >
       {isFavorited ? "★" : "☆"}
     </button>
