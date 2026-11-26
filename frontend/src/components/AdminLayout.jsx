@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet } from 'react-router-dom';
 import LogoutButton from './LogoutButton';
+import ThemeToggle from './ThemeToggle';
 import '../styles/admin-layout.css';
 
 const navClassName = ({ isActive }) =>
@@ -36,6 +37,7 @@ export default function AdminLayout() {
             </li>
           </ul>
         </nav>
+        <ThemeToggle />
       </aside>
 
       <main className="admin-content">

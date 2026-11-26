@@ -1,9 +1,160 @@
+/* Tokens semânticos compartilhados pela interface pública e administrativa. */
 :root {
-  --red: #c8102e;
-  --red-dark: #9e0b23;
-  --white: #fff;
+  color-scheme: light;
+  --red: #b20e2e;
+  --red-dark: #8c0a22;
+  --white: #ffffff;
   --gray: #f4f4f5;
-  --border: #d4d4d8;
+  --border: #c5c5cc;
+
+  --page: #f4f0e8;
+  --paper: var(--page);
+  --ink: #161616;
+  --muted: #57534b;
+  --surface: #ffffff;
+  --surface-soft: #f5f5f5;
+  --input-bg: #ffffff;
+  --line: rgb(22 22 22 / 0.22);
+  --shadow-color: #161616;
+  --on-color: #ffffff;
+  --accent-text: #a40828;
+  --focus-ring: #a40828;
+  --nav-bg: #ffffff;
+  --nav-hover: #f9e4e8;
+  --sidebar-bg: #111111;
+  --sidebar-heading: #ffffff;
+  --sidebar-text: #e4e4e7;
+  --sidebar-muted: #b0b0b9;
+  --sidebar-hover: #27272a;
+
+  --success-bg: #e8f8ed;
+  --success-border: #64b887;
+  --success-text: #14532d;
+  --danger-bg: #fff0f2;
+  --danger-border: #dd8c9d;
+  --danger-text: #8f1229;
+  --inactive-bg: #e9e9ec;
+
+  --t-palestra: #2548b7;
+  --t-palestra-text: #2548b7;
+  --t-workshop: #006c4d;
+  --t-workshop-text: #006c4d;
+  --t-hackathon: #9c4500;
+  --t-hackathon-text: #9c4500;
+  --t-minicurso: #6732a6;
+  --t-minicurso-text: #6732a6;
+  --t-outros: #27272a;
+  --t-outros-text: #27272a;
+  --favorite-color: #875700;
+  --modal-backdrop: rgb(0 0 0 / 0.65);
 }
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --red: #ae0e2e;
+  --red-dark: #8f0a24;
+  --white: #ffffff;
+  --gray: #181b21;
+  --border: #646873;
+
+  --page: #17191f;
+  --paper: var(--page);
+  --ink: #f2f4f8;
+  --muted: #b9bdc8;
+  --surface: #252931;
+  --surface-soft: #30353f;
+  --input-bg: #20242b;
+  --line: rgb(242 244 248 / 0.25);
+  --shadow-color: #08090d;
+  --accent-text: #ff9ab0;
+  --focus-ring: #ffb8c7;
+  --nav-bg: #21252d;
+  --nav-hover: #34303d;
+  --sidebar-bg: #0e1117;
+  --sidebar-heading: #ffffff;
+  --sidebar-text: #e7e9ef;
+  --sidebar-muted: #b9bdc8;
+  --sidebar-hover: #30353f;
+
+  --success-bg: #143829;
+  --success-border: #52a87a;
+  --success-text: #b0f2cd;
+  --danger-bg: #3c1e29;
+  --danger-border: #ba677f;
+  --danger-text: #ffd0dc;
+  --inactive-bg: #383c45;
+
+  --t-palestra: #2948ac;
+  --t-palestra-text: #b0c2ff;
+  --t-workshop: #006749;
+  --t-workshop-text: #85e8bc;
+  --t-hackathon: #914006;
+  --t-hackathon-text: #ffc28c;
+  --t-minicurso: #6235a5;
+  --t-minicurso-text: #d4afff;
+  --t-outros: #3d4452;
+  --t-outros-text: #f2f4f8;
+  --favorite-color: #ffcf80;
+}
+
 * { box-sizing: border-box; }
-body { margin: 0; font-family: system-ui, sans-serif; background: var(--gray); color: #1f1f1f; }
+html { background: var(--page); }
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  color: var(--ink);
+  background: var(--page);
+}
+button, input, textarea, select { font: inherit; }
+input, textarea, select { color: var(--ink); background: var(--input-bg); }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 3px; }
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.theme-toggle:hover { background: var(--surface-soft); }
+.theme-toggle:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 3px; }
+
+.favorite-button {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 1.25rem;
+  line-height: 1;
+}
+.favorite-button.is-favorited { color: var(--favorite-color); }
+.favorite-button:hover:not(:disabled) { background: var(--surface-soft); }
+.favorite-button:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* O painel de extração foi adicionado depois do ZIP original.
+   Seletores específicos mantêm o modo escuro sem sobrescrever a implementação da US 4.3. */
+:root[data-theme='dark'] .extraction-page { background: var(--page); color: var(--ink); }
+:root[data-theme='dark'] .extraction-page h1,
+:root[data-theme='dark'] .extraction-page h2,
+:root[data-theme='dark'] .metric-value { color: var(--ink); }
+:root[data-theme='dark'] .extraction-metrics { border-color: var(--line); background: var(--page); }
+:root[data-theme='dark'] .metric-card { border-color: var(--line); background: var(--page); }
+:root[data-theme='dark'] .metric-label { color: var(--muted); }
+:root[data-theme='dark'] .recent-item { border-color: var(--line); background: var(--surface); color: var(--ink); }
+:root[data-theme='dark'] .extraction-page .extraction-kicker { color: var(--success-text); }
+:root[data-theme='dark'] .extraction-page .extraction-kicker-error { color: var(--danger-text); }
+:root[data-theme='dark'] .extraction-banner-error { color: var(--danger-text); background: var(--danger-bg); border-color: var(--danger-border); }
+:root[data-theme='dark'] .extraction-banner-error p { color: var(--danger-text); }
+:root[data-theme='dark'] .recent-section p,
+:root[data-theme='dark'] .alerts-section p { color: var(--ink); }

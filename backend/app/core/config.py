@@ -7,23 +7,26 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ── Banco de dados ──────────────────────────────────────────────────
-# PostgreSQL é o banco do projeto (dev, testes e produção). O padrão abaixo é o
-# PostgreSQL local descrito em docs/migracao-postgresql.md; para outro servidor,
-# defina DATABASE_URL no .env. SQLite deixou de ser suportado.
-DATABASE_URL: str = os.getenv(
-    "DATABASE_URL", "postgresql+psycopg://postgres:dev@localhost:5432/eventos"
-)
+# A URL do banco deve ser configurada fora do codigo, em variavel de ambiente
+# ou em backend/.env (arquivo privado). Nao manter senhas de demonstração como fallback.
+DATABASE_URL: str = os.getenv("DATABASE_URL", "")
+if not DATABASE_URL:
+    raise RuntimeError("Defina DATABASE_URL no ambiente ou em backend/.env")
 
 # ── JWT ─────────────────────────────────────────────────────────────
-SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", os.getenv("SECRET_KEY", "troque-esta-chave-em-producao"))
+SECRET_KEY: str = (os.getenv("JWT_SECRET_KEY") or os.getenv("SECRET_KEY") or "").strip()
+if len(SECRET_KEY) < 32:
+    raise RuntimeError(
+        "Defina SECRET_KEY ou JWT_SECRET_KEY com uma chave forte de pelo menos 32 caracteres"
+    )
 JWT_ALGORITHM: str = os.getenv("JWT_ALGORITHM", "HS256")
 JWT_EXPIRE_MINUTES: int = int(os.getenv("JWT_EXPIRE_MINUTES", "60"))
 
 # ── Admin seed ──────────────────────────────────────────────────────
 # O administrador inicial é um registro da tabela ``usuario`` com is_admin = TRUE
 # (modelo EER: não existe entidade/tabela própria de admin).
-ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "admin@cin.ufpe.br")
-ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "123456")
+ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "").strip()
+ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "")
 ADMIN_NAME: str = os.getenv("ADMIN_NAME", "Administrador")
 ADMIN_PROFILE_NAME: str = os.getenv("ADMIN_PROFILE_NAME", "admin")
 

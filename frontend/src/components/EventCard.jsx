@@ -20,8 +20,9 @@ export default function EventCard({ event, index = 0 }) {
       </time>
       <div className="event-body">
         <span className="event-type">{event.event_type ?? event.type}</span>
-            <Link to={`/eventos/${event.id}`}>{event.title}</Link>
-        <h3 className="event-title">{event.title}</h3>
+        <h3 className="event-title">
+          <Link to={`/eventos/${event.id}`}>{event.title}</Link>
+        </h3>
         <p className="event-meta">{event.time.slice(0, 5)}</p>
         <p className="event-meta">{event.location}</p>
       </div>

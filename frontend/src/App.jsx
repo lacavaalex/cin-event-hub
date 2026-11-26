@@ -1,3 +1,4 @@
+
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import PrivateRoute from './routes/PrivateRoute';
@@ -25,6 +26,7 @@ export default function App() {
             <Route path="/eventos/:id" element={<EventDetails />} />
             <Route path="/login" element={<Login />} />
           </Route>
+
           <Route path="/admin" element={<PrivateRoute><AdminLayout /></PrivateRoute>}>
             <Route index element={<Navigate to="events" replace />} />
             <Route path="events" element={<AdminEventsPage />} />
@@ -33,6 +35,7 @@ export default function App() {
             <Route path="extraction" element={<ExtractionStatusPage />} />
             <Route path="*" element={<Navigate to="/admin/events" replace />} />
           </Route>
+
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </BrowserRouter>
