@@ -1,5 +1,5 @@
 .home {
-  --mono: ui-monospace, 'JetBrains Mono', monospace;
+  --mono: var(--font-mono);
 
   background: var(--paper);
   color: var(--ink);

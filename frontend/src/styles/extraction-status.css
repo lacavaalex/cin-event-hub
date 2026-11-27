@@ -1,19 +1,19 @@
 .extraction-page {
-  padding: 32px;
+  padding: var(--space-8);
 }
 
 .extraction-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6);
 }
 
 .extraction-kicker {
   font-size: 0.95rem;
   letter-spacing: 0.2em;
-  color: #1d7f42;
-  margin-bottom: 8px;
+  color: var(--success-text);
+  margin-bottom: var(--space-2);
   text-transform: uppercase;
 }
 
@@ -23,28 +23,28 @@
 }
 
 .extraction-banner {
-  padding: 16px 20px;
+  padding: var(--space-4) var(--space-5);
   border-radius: 8px;
-  margin-bottom: 24px;
+  margin-bottom: var(--space-6);
   font-weight: 600;
 }
 
 .extraction-banner-error {
-  background: #ffe3e3;
-  color: #a61e4d;
-  border: 1px solid #faa2c1;
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  border: 1px solid var(--danger-border);
 }
 
 .extraction-metrics {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  border: 2px solid #2b2b2b;
+  border: 2px solid var(--ink);
   margin-bottom: 32px;
 }
 
 .metric-card {
-  padding: 32px;
-  border-right: 1px solid #d0d0d0;
+  padding: var(--space-8);
+  border-right: 1px solid var(--line);
 }
 
 .metric-card:last-child {
@@ -54,8 +54,8 @@
 .metric-label {
   font-size: 0.95rem;
   letter-spacing: 0.2em;
-  color: #6b6b6b;
-  margin-bottom: 24px;
+  color: var(--muted);
+  margin-bottom: var(--space-6);
 }
 
 .metric-value {
@@ -85,7 +85,7 @@
 
 .recent-item {
   padding: 16px 0;
-  border-bottom: 1px solid #dcdcdc;
+  border-bottom: 1px solid var(--line);
   font-size: 1.1rem;
 }
 
@@ -96,7 +96,7 @@
 
   .metric-card {
     border-right: none;
-    border-bottom: 1px solid #d0d0d0;
+    border-bottom: 1px solid var(--line);
   }
 
   .metric-card:last-child {
@@ -112,7 +112,7 @@
   }
 }
 .extraction-kicker-error {
-  color: #b42318;
+  color: var(--danger-text);
 }
 
 .metric-value-date {
