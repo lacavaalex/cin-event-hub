@@ -47,7 +47,7 @@ GMAIL_MAX_RESULTS: int = int(os.getenv("GMAIL_MAX_RESULTS", "50"))
 # Chave do Gemini
 GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
 GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
-GEMINI_MAX_OUTPUT_TOKENS: int = int(os.getenv("GEMINI_MAX_OUTPUT_TOKENS", "1024"))
+GEMINI_MAX_OUTPUT_TOKENS: int = int(os.getenv("GEMINI_MAX_OUTPUT_TOKENS", "1536"))
 
 # ── Limpeza de eventos expirados (US 5.1 / 5.2) ──────────────
 CLEANUP_ENABLED: bool = os.getenv("CLEANUP_ENABLED", "true").lower() in {

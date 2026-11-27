@@ -22,7 +22,7 @@ LOCAL_TZ = ZoneInfo("America/Recife")
 REQUIRED_FIELDS = ("title", "date", "time", "location")
 
 _LOCATION_LABELED = re.compile(
-    r"(?im)^\s*(?:local|onde|localiza[çc][aã]o|localizacao|endere[çc]o|address)\s*[:\-–]\s*(.+)$"
+    r"(?im)^\s*(?:local|onde|localiza[çc][aã]o|localizacao|endere[çc]o|address|hora\s*/\s*local)\s*[:\-–]\s*(.+)$"
 )
 _LOCATION_HINT = re.compile(
     r"(?i)\b(audit[oó]rio|auditorio|sala|salao|campus|online|remoto|zoom|meet\.google"
@@ -53,6 +53,22 @@ _FIELD_LINE = re.compile(
     r"(?im)^\s*(?:local|onde|localiza[çc][aã]o|endere[çc]o|data|dia|hora|"
     r"hor[áa]rio|inscri[çc][ãa]o|link|tipo|categoria|descri[çc][ãa]o)\s*[:\-–]\s*$"
 )
+_VIRTUAL = re.compile(
+    r"(?i)\b(virtual|online|remoto|google meet|meet\.google|zoom|teams)\b"
+)
+_PLATFORM = re.compile(r"(?i)\b(google meet|meet\.google|zoom|teams)\b")
+_PERSON_MARKER = re.compile(
+    r"(?i)\b(?:prof(?:essor|essora)?\.?|dr\.?|dra\.?|orientador(?:a)?|"
+    r"banca|examinador(?:a)?|alun[oa]|palestrante)\b"
+)
+_INLINE_LABEL = re.compile(
+    r"(?i)\b(banca examinadora|banca|resumo|data|dia|hora/local|local|hora|"
+    r"hor[áa]rio|inscri[çc][ãa]o|link|tipo|categoria|descri[çc][ãa]o)\s*:"
+)
+_MARKDOWN_EMPHASIS = re.compile(
+    r"(?<!\w)(?:\*{1,2}|_{1,2})(?!\s)([^*_\n]+?)(?<!\s)(?:\*{1,2}|_{1,2})(?!\w)"
+)
+_TYPO_HORAARIO = re.compile(r"(?i)\bHORAÁRIO\b")
 _TYPE_KEYWORDS: list[tuple[tuple[str, ...], str]] = [
     (("hackathon", "hackatona", "maratona"), "Hackathon"),
     (("palestra", "confer[eê]ncia", "keynote", "semin[aá]rio", "seminario", "mesa redonda"), "Palestra"),
@@ -90,6 +106,26 @@ def _clean(text: str) -> str:
     return html.unescape(text)
 
 
+def _correct_common_typos(text: str) -> str:
+    def _replace(match: re.Match[str]) -> str:
+        original = match.group(0)
+        if original.isupper():
+            return "HORÁRIO"
+        if original[0].isupper():
+            return "Horário"
+        return "horário"
+
+    return _TYPO_HORAARIO.sub(_replace, text)
+
+
+def _normalize_text(text: str) -> str:
+    text = _correct_common_typos(_clean(text).replace("\r", "\n"))
+    text = _MARKDOWN_EMPHASIS.sub(r"\1", text)
+    text = _INLINE_LABEL.sub(r"\n\1:", text)
+    text = re.sub(r"[ \t]+", " ", text)
+    return re.sub(r"\n{3,}", "\n\n", text)
+
+
 def _subject_to_plain(subject: str) -> str:
     """Remove acentos e coloca em minúsculas apenas para casar padrões."""
     mapping = str.maketrans(
@@ -100,7 +136,7 @@ def _subject_to_plain(subject: str) -> str:
 
 
 def _extract_title(subject: str, body: str) -> str:
-    title = _clean(subject or "").strip()
+    title = _correct_common_typos(_clean(subject or "").strip())
     for _ in range(5):
         new = _TITLE_PREFIX.sub("", title)
         new = _BRACKET_TAG.sub("", new)
@@ -111,7 +147,7 @@ def _extract_title(subject: str, body: str) -> str:
     if title:
         return title[:200].rstrip()
     for line in (body or "").splitlines():
-        line = _clean(line).strip()
+        line = _correct_common_typos(_clean(line).strip())
         if line:
             return line[:200]
     return ""
@@ -157,12 +193,36 @@ def _extract_time(text: str) -> dt.time | None:
 
 
 def _extract_location(subject: str, body: str) -> str:
-    text = _clean(body)
-    m = _LOCATION_LABELED.search(text)
-    if m:
-        return m.group(1).strip().strip("-–:")[:200]
+    text = _normalize_text(body)
+    for line in text.splitlines():
+        if _VIRTUAL.search(line):
+            platform = _PLATFORM.search(line)
+            return f"Virtual ({platform.group(0)})" if platform else "Virtual"
+    for match in _LOCATION_LABELED.finditer(text):
+        value = match.group(1).strip().strip("-–:")
+        if _PERSON_MARKER.search(value):
+            continue
+        parts = [
+            part.strip()
+            for part in re.split(r"[–—;|]", value)
+            if part.strip()
+        ]
+        candidate = next(
+            (
+                part
+                for part in parts
+                if _LOCATION_HINT.search(part) and not _PERSON_MARKER.search(part)
+            ),
+            "",
+        )
+        if candidate:
+            return candidate[:200]
+        if value:
+            return value[:200]
     for line in text.splitlines():
         line = line.strip()
+        if _PERSON_MARKER.search(line):
+            continue
         if _LOCATION_HINT.search(line) and len(line) <= 200:
             return line
     return ""
@@ -190,16 +250,23 @@ def _first_link(subject: str, body: str) -> str:
 
 
 def _extract_description(title: str, body: str) -> str:
-    text = _link_invisible(title + "\n" + body)
-    text = _LOCATION_LABELED.sub("", text)
-    text = _FIELD_LINE.sub("", text)
-    text = text.replace("\r\n", "\n").replace("\r", "\n")
-    paragraphs = [p.strip() for p in re.split(r"\n\s*\n", text) if p.strip()]
-    description = next(
-        (p for p in paragraphs if p),
-        title,
-    )
-    description = re.sub(r"\s+", " ", description)
+    text = _link_invisible(_normalize_text(body))
+    title_line = _correct_common_typos(_clean(title).strip())
+    lines: list[str] = []
+    for line in text.splitlines():
+        line = line.strip().strip("-–:")
+        if not line or line == title_line or _FIELD_LINE.fullmatch(line):
+            continue
+        lines.append(line)
+    paragraphs: list[str] = []
+    for line in lines:
+        if not paragraphs or _INLINE_LABEL.match(line) or paragraphs[-1].endswith(":"):
+            paragraphs.append(line)
+        else:
+            paragraphs[-1] += " " + line
+    description = "\n\n".join(paragraphs).strip()
+    if not description:
+        description = "Sem descrição disponível no e-mail."
     if len(description) > _DESCRIPTION_MAX:
         description = description[:_DESCRIPTION_MAX].rstrip() + "…"
     return description

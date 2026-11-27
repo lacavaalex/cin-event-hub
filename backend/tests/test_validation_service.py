@@ -182,3 +182,22 @@ def test_padrao_usa_data_atual_de_recife():
 
 def test_decisao_publicar_quando_sem_motivos():
     assert ValidationResult().decision == ValidationDecision.PUBLICAR
+
+
+def test_local_com_nome_de_pessoa_e_descartado():
+    payload = {
+        **PAYLOAD_COMPLETO,
+        "location": "Prof. Anderson Apolônio Lira Queiroz (IFPE/Campus Paulista)",
+    }
+
+    result = inspect_payload(payload)
+
+    assert result.valid is False
+    assert result.reasons == (ValidationReason.LOCAL_SUSPEITO,)
+    assert result.reason_texts == ("local_suspeito",)
+
+
+def test_local_explicito_com_nome_de_pessoa_e_aceito():
+    payload = {**PAYLOAD_COMPLETO, "location": "Auditório Prof. João"}
+
+    assert inspect_payload(payload).valid is True
