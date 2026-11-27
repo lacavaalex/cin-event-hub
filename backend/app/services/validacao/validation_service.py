@@ -17,6 +17,7 @@ decisão a decisão (IESI-75).
 from __future__ import annotations
 
 import datetime as dt
+import re
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, Mapping
@@ -32,6 +33,15 @@ REQUIRED_FIELDS = ("title", "date")
 # Formatos aceitos para a string de data vinda do JSON da IA.
 _DATE_FORMATS = ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d.%m.%Y")
 
+_LOCAL_SUSPEITO = re.compile(
+    r"(?i)\b(?:prof(?:essor|essora)?\.?|dr\.?|dra\.?|orientador(?:a)?|"
+    r"banca|examinador(?:a)?|alun[oa]|palestrante)\b"
+)
+_LOCAL_EXPLICITO = re.compile(
+    r"(?i)\b(?:audit[oó]rio|sala|pr[ée]dio|bloco|laborat[oó]rio|"
+    r"teatro|biblioteca|campus|endere[çc]o)\b"
+)
+
 
 class ValidationReason(StrEnum):
     """Motivos de rejeição da validação (IESI-73 + IESI-74)."""
@@ -40,6 +50,7 @@ class ValidationReason(StrEnum):
     DATA_VAZIA = "data_vazia"
     DATA_INVALIDA = "data_invalida"
     DATA_NO_PASSADO = "data_no_passado"
+    LOCAL_SUSPEITO = "local_suspeito"
 
 
 class ValidationDecision(StrEnum):
@@ -111,6 +122,9 @@ def inspect_payload(payload: Mapping[str, Any]) -> ValidationResult:
     elif coerce_date(raw_date) is None:
         reasons.append(ValidationReason.DATA_INVALIDA)
 
+    if _location_suspeita(payload.get("location")):
+        reasons.append(ValidationReason.LOCAL_SUSPEITO)
+
     return ValidationResult(tuple(reasons))
 
 
@@ -134,6 +148,15 @@ def coerce_date(value: object) -> dt.date | None:
 
 def _has_title(payload: Mapping[str, Any]) -> bool:
     return not _is_blank(payload.get("title"))
+
+
+def _location_suspeita(value: object) -> bool:
+    text = "" if value is None else str(value).strip()
+    if not text:
+        return False
+    if _LOCAL_SUSPEITO.match(text):
+        return True
+    return bool(_LOCAL_SUSPEITO.search(text)) and not _LOCAL_EXPLICITO.match(text)
 
 
 def _is_blank(value: object) -> bool:

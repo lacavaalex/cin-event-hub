@@ -64,5 +64,16 @@
       "time": "08:00",
       "location": "Laboratório LIT"
     }
+  },
+  {
+    "id": "tese-726",
+    "subject": "Tese de Doutorado Nº 726 - NOVO HORAÁRIO",
+    "body": "Defesa de Tese de Doutorado Nº 726. Aluna: Maria Katarine Santana Barbosa. Orientador: Prof. Kelvin Lopes Dias. Título: AgentxGMoNet: Um Arcabouço de Gerenciamento Fim a Fim para Redes Móveis de Próxima Geração Baseado em IA Agêntica. Data: 30/11/2026. Hora/Local: 9h – Virtual – Interessados em assistir entrar em contato com a aluna. Banca Examinadora: Prof. Carlos André Guimarães Ferraz (UFPE/Centro de Informática), Prof. Anderson Apolônio Lira Queiroz (IFPE/Campus Paulista). RESUMO: A tese compara NEMA e AgentxG-ORAN em redes móveis.",
+    "expected": {
+      "title": "Tese de Doutorado Nº 726 - NOVO HORÁRIO",
+      "date": "2026-11-30",
+      "time": "09:00",
+      "location": "Virtual"
+    }
   }
 ]

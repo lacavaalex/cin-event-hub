@@ -304,6 +304,25 @@ def test_ia_com_titulo_vazio_e_descartada(db_session):
     assert "titulo_vazio" in (log.error_message or "")
 
 
+def test_ia_com_local_suspeito_e_descartada(db_session):
+    client = ClientFake([_raw("ia-local", EMAIL_LIVRE)])
+    gemini = GeminiFake(
+        result=_parsed_event(
+            location="Prof. Anderson Apolônio Lira Queiroz (IFPE/Campus Paulista)"
+        )
+    )
+
+    summary = run_extraction(db_session, client, gemini_client=gemini)
+
+    assert summary.discarded == 1
+    assert summary.processed_ia == 0
+    assert db_session.query(Event).count() == 0
+
+    log = db_session.query(ExtractionLog).one()
+    assert log.status == STATUS_EXTRACAO_INCOMPLETA
+    assert "local_suspeito" in (log.error_message or "")
+
+
 def test_ia_com_data_de_hoje_e_publicada(db_session):
     client = ClientFake([_raw("ia-7", EMAIL_LIVRE)])
     hoje = dt.datetime.now(LOCAL_TZ).date()

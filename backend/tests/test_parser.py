@@ -26,6 +26,16 @@ Local: Auditório do CIn
 Inscrições pelo link: https://forms.example.com/hackathon-cin
 """
 
+EMAIL_TESE = """\
+Prezados,
+
+*Pós-Graduação em Ciência da Computação – UFPE*
+
+Defesa de Tese de Doutorado Nº 726. Aluna: Maria Katarine Santana Barbosa.
+Orientador: Prof. Kelvin Lopes Dias. Título: AgentxGMoNet: Um Arcabouço de Gerenciamento Fim a Fim para Redes Móveis de Próxima Geração Baseado em IA Agêntica.
+Data: 30/11/2026. Hora/Local: 9h – Virtual – Interessados em assistir entrar em contato com a aluna. Banca Examinadora: Prof. Carlos André Guimarães Ferraz (UFPE/Centro de Informática), Prof. Anderson Apolônio Lira Queiroz (IFPE/Campus Paulista). RESUMO: A tese compara NEMA e AgentxG-ORAN em redes móveis.
+"""
+
 
 def test_extrai_todos_os_campos_obrigatorios():
     evento = parse_email("Convocação: Hackathon CIn 2025", EMAIL_VALIDO)
@@ -86,3 +96,36 @@ def test_email_vazio_de_titulo_usa_primeira_linha_do_corpo():
     evento = parse_email("", body)
 
     assert evento.title == "Semana de Computação 2026"
+
+
+def test_local_virtual_nao_usa_afiliacao_da_banca():
+    evento = parse_email("Tese de Doutorado Nº 726 - NOVO HORAÁRIO", EMAIL_TESE)
+
+    assert evento.title == "Tese de Doutorado Nº 726 - NOVO HORÁRIO"
+    assert evento.date == dt.date(2026, 11, 30)
+    assert evento.time == dt.time(9, 0)
+    assert evento.location == "Virtual"
+    assert evento.event_type == "Outro"
+    assert "*" not in evento.description
+    assert "\n\nBanca Examinadora:" in evento.description
+    assert "AgentxGMoNet" in evento.description
+    assert "NEMA" in evento.description
+    assert "AgentxG-ORAN" in evento.description
+    assert not evento.description.startswith("Tese de Doutorado")
+
+
+def test_nome_de_pessoa_nao_e_local_quando_nao_ha_modalidade():
+    body = "Data: 10/01/2026\nHora: 18h\nLocal: Prof. Carlos (IFPE/Campus Paulista)"
+
+    with pytest.raises(InsufficientDataError) as exc:
+        parse_email("Palestra", body)
+
+    assert "location" in exc.value.missing
+
+
+def test_local_presencial_com_professor_e_sala():
+    body = "Palestra do Prof. Carlos.\nData: 10/01/2026\nHora: 18h\nLocal: Sala A"
+
+    evento = parse_email("Palestra", body)
+
+    assert evento.location == "Sala A"

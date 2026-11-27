@@ -6,6 +6,8 @@ exercitando toda a validação/parse do backend.
 
 import datetime as dt
 import json
+import sys
+import types
 
 import pytest
 
@@ -113,39 +115,53 @@ def test_falha_da_api_e_erro_operacional():
         FakeGemini(GeminiExtractionError("500")).extract_event("S", "b")
 
 
-# ── Wiring do SDK real (google-genai), sem rede ──────────────────────
-def test_generate_chama_sdk_e_retorna_texto(monkeypatch):
-    genai = pytest.importorskip("google.genai")
+def _instalar_openai_fake(monkeypatch, *, falhar=False):
+    class _Message:
+        def __init__(self, content):
+            self.content = content
 
-    class _Response:
-        text = _json()
+    class _Choice:
+        def __init__(self, content):
+            self.message = _Message(content)
 
-    class _Models:
-        def generate_content(self, **kwargs):
-            return _Response()
+    class _Completions:
+        def create(self, **kwargs):
+            if falhar:
+                raise RuntimeError("falha simulada")
+            return types.SimpleNamespace(choices=[_Choice(_json())])
 
-    class _Client:
+    class _Chat:
+        completions = _Completions()
+
+    class _OpenAI:
         def __init__(self, **kwargs):
-            self.models = _Models()
+            self.chat = _Chat()
 
-    monkeypatch.setattr(genai, "Client", _Client)
+    monkeypatch.setitem(sys.modules, "openai", types.SimpleNamespace(OpenAI=_OpenAI))
+
+
+def test_generate_chama_sdk_e_retorna_texto(monkeypatch):
+    _instalar_openai_fake(monkeypatch)
 
     evento = GeminiClient(api_key="teste").extract_event("S", "b")
     assert evento.title == "Workshop de Python"
 
 
 def test_generate_encapsula_erro_do_sdk(monkeypatch):
-    genai = pytest.importorskip("google.genai")
-
-    class _Models:
-        def generate_content(self, **kwargs):
-            raise RuntimeError("falha simulada")
-
-    class _Client:
-        def __init__(self, **kwargs):
-            self.models = _Models()
-
-    monkeypatch.setattr(genai, "Client", _Client)
+    _instalar_openai_fake(monkeypatch, falhar=True)
 
     with pytest.raises(GeminiExtractionError):
         GeminiClient(api_key="teste")._generate("prompt")
+
+
+def test_prompt_v2_contem_regras_de_local_ortografia_e_descricao():
+    from app.services.ia_gemini.prompt import SYSTEM_INSTRUCTION, build_prompt
+
+    assert "REGRA DE LOCAL (location)" in SYSTEM_INSTRUCTION
+    assert "REGRA DE ORTOGRAFIA" in SYSTEM_INSTRUCTION
+    assert "AgentxGMoNet" in SYSTEM_INSTRUCTION
+    assert "HORAÁRIO" in SYSTEM_INSTRUCTION
+
+    prompt = build_prompt("Assunto", "Corpo")
+    assert "location nunca é nome de pessoa" in prompt
+    assert "sem asteriscos" in prompt
