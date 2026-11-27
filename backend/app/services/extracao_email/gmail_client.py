@@ -1,14 +1,14 @@
 """Cliente de leitura da caixa institucional via Gmail API + OAuth 2.0.
 
-Obackend autentica-se com OAuth 2.0 para varrer a
+O backend autentica-se com OAuth 2.0 para varrer a
 caixa do e-mail institucional. As chaves/credenciais ficam apenas no servidor. Os imports das bibliotecas do Google são feitos dentro dos métodos
 para que o restante do serviço (parser, scheduler, testes) funcione mesmo sem
 elas instaladas, e para que a aplicação leve exatamente as dependências que usa.
 
 Autorização inicial (uma única vez, em máquina com navegador):
-    1. Baixe o arquivo client_secret no console do GCP no formato "Desktop app"
+1. Baixe o arquivo client_secret no console do GCP no formato "Desktop app"
        e salve em GMAIL_CREDENTIALS_FILE.
-    2. Rode o endpoint POST /extraction/run (ou o script) — o navegador abre o
+2. Rode o endpoint POST /extraction/run (ou o script) — o navegador abre o
        consentimento e o token é salvo em GMAIL_TOKEN_FILE com refresh.
 """
 
@@ -93,10 +93,13 @@ class GmailClient:
         creds = None
         if Path(self.token_file).exists():
             creds = Credentials.from_authorized_user_file(self.token_file, SCOPES)
+
+        needs_save = False
         if creds is not None and creds.valid:
             pass
         elif creds is not None and creds.expired and creds.refresh_token:
             creds.refresh(Request())
+            needs_save = True
         else:
             if not Path(self.credentials_file).exists():
                 raise FileNotFoundError(
@@ -107,9 +110,18 @@ class GmailClient:
                 self.credentials_file, SCOPES
             )
             creds = flow.run_local_server(port=0)
-        Path(self.token_file).parent.mkdir(parents=True, exist_ok=True)
-        with open(self.token_file, "w", encoding="utf-8") as fh:
-            fh.write(creds.to_json())
+            needs_save = True
+
+        if needs_save:
+            try:
+                Path(self.token_file).parent.mkdir(parents=True, exist_ok=True)
+                with open(self.token_file, "w", encoding="utf-8") as fh:
+                    fh.write(creds.to_json())
+            except OSError:
+                # Em produção (ex.: Render /etc/secrets), o sistema de arquivos é
+                # somente leitura; o token renovado segue válido em memória.
+                pass
+
         return build("gmail", "v1", credentials=creds)
 
     @staticmethod
