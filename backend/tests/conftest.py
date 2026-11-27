@@ -35,13 +35,6 @@ from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
-from app.database import Base
-# Os models são importados para serem registrados no Base.metadata.
-from app.models.event import Event  # noqa: F401
-from app.models.events.models import Favorite  # noqa: F401
-from app.models.extraction_log import ExtractionLog  # noqa: F401
-from app.models.user import User  # noqa: F401
-
 ADMIN_URL = os.environ.get(
     "DATABASE_ADMIN_URL", "postgresql://postgres:dev@localhost:5432/postgres"
 )
@@ -56,6 +49,19 @@ def _url_do_banco(database: str) -> str:
         .set(drivername="postgresql+psycopg", database=database)
         .render_as_string(hide_password=False)
     )
+
+
+# Garante defaults seguros para testes antes de importar ``app.core.config``
+# (que exige DATABASE_URL e SECRET_KEY >= 32 chars no ambiente).
+os.environ.setdefault("DATABASE_URL", _url_do_banco(TEST_DB))
+os.environ.setdefault("SECRET_KEY", "0" * 64)
+
+from app.database import Base  # noqa: E402
+# Os models são importados para serem registrados no Base.metadata.
+from app.models.event import Event  # noqa: F401, E402
+from app.models.events.models import Favorite  # noqa: F401, E402
+from app.models.extraction_log import ExtractionLog  # noqa: F401, E402
+from app.models.user import User  # noqa: F401, E402
 
 
 @pytest.fixture(scope="session")

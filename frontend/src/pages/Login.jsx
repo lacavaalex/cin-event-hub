@@ -42,7 +42,7 @@ export default function Login() {
 
         <div className="field">
           <label htmlFor="email">E-mail institucional</label>
-          <input id="email" type="email" value={email}
+          <input id="email" type="email" autoComplete="email" value={email}
             className={errors.email ? 'invalid' : ''}
             onChange={(e) => setEmail(e.target.value)} />
           {errors.email && <span className="field-error">{errors.email}</span>}
@@ -50,7 +50,7 @@ export default function Login() {
 
         <div className="field">
           <label htmlFor="password">Senha</label>
-          <input id="password" type="password" value={password}
+          <input id="password" type="password" autoComplete="current-password" value={password}
             className={errors.password ? 'invalid' : ''}
             onChange={(e) => setPassword(e.target.value)} />
           {errors.password && <span className="field-error">{errors.password}</span>}

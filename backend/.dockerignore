@@ -1,0 +1,18 @@
+# Evita copiar lixo e arquivos sensíveis para dentro da imagem do backend.
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+gmail_credentials*.json
+gmail_token*.json
+credentials.json
+token.json
+client_secret*.json
+gemini_key*.json
+*.pem
+*.key
+.git/

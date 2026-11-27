@@ -60,3 +60,14 @@ CLEANUP_INTERVAL_MINUTES: int | None = (
     int(_raw_cleanup_interval) if _raw_cleanup_interval else None
 )
 
+# ── OpenRouter / CORS ───────────────────────────────────────────────
+OPENROUTER_API_KEY: str = os.getenv("OPENROUTER_API_KEY", "")
+OPENROUTER_BASE_URL: str = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+OPENROUTER_DEFAULT_MODEL: str = "google/gemma-4-31b-it:free"
+
+_raw_origins = os.getenv("ALLOWED_ORIGINS", "*")
+ALLOWED_ORIGINS: list[str] = [
+    origin.strip() for origin in _raw_origins.split(",") if origin.strip()
+] or ["*"]
+
+

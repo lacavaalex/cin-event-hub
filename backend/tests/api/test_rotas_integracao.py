@@ -77,6 +77,9 @@ def _contar(db, tabela, where="true"):
 
 def test_health(client):
     assert client.get("/").json() == {"status": "ok", "project": "cin-event-hub"}
+    r_health = client.get("/health")
+    assert r_health.status_code == 200
+    assert r_health.json() == {"status": "ok", "project": "cin-event-hub"}
 
 
 def test_login_ok_devolve_token(auth):
