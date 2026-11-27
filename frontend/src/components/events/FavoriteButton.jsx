@@ -1,25 +1,44 @@
-import { useState } from "react";
-import { favoriteEvent, unfavoriteEvent } from "../../services/eventsApi";
-export default function FavoriteButton({ eventId, initialIsFavorited = false, onChange }) {
-  const [isFavorited, setIsFavorited] = useState(initialIsFavorited);
+import { useState } from 'react';
+import { favoriteEvent, unfavoriteEvent } from '../../services/eventsApi';
+import {
+  addFavoriteId,
+  isEventFavorited,
+  removeFavoriteId,
+} from '../../services/favoritesStore';
+
+export default function FavoriteButton({
+  eventId,
+  initialIsFavorited,
+  showLabel = false,
+  onChange,
+}) {
+  const [isFavorited, setIsFavorited] = useState(
+    () => initialIsFavorited ?? isEventFavorited(eventId)
+  );
   const [isSaving, setIsSaving] = useState(false);
 
   async function handleClick() {
     if (isSaving) return;
 
     const next = !isFavorited;
-    setIsFavorited(next); // otimista: muda já, antes da API responder
+    setIsFavorited(next);
+    if (next) {
+      addFavoriteId(eventId);
+    } else {
+      removeFavoriteId(eventId);
+    }
+    onChange?.(next);
     setIsSaving(true);
 
     try {
+      // Sincronização best-effort com a API (mantém o favorito local salvo no navegador).
       if (next) {
         await favoriteEvent(eventId);
       } else {
         await unfavoriteEvent(eventId);
       }
-      onChange?.(next);
     } catch {
-      setIsFavorited(!next); // desfaz a mudança otimista em caso de erro
+      // A preferência anônima permanece persistida em localStorage.
     } finally {
       setIsSaving(false);
     }
@@ -31,10 +50,15 @@ export default function FavoriteButton({ eventId, initialIsFavorited = false, on
       onClick={handleClick}
       disabled={isSaving}
       aria-pressed={isFavorited}
-      aria-label={isFavorited ? "Remover dos favoritos" : "Adicionar aos favoritos"}
-      className={`favorite-button${isFavorited ? ' is-favorited' : ''}`}
+      aria-label={isFavorited ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}
+      className={`favorite-button${showLabel ? ' favorite-button--details' : ''}${
+        isFavorited ? ' is-favorited' : ''
+      }`}
     >
-      {isFavorited ? "★" : "☆"}
+      <span aria-hidden="true">{isFavorited ? '★' : '☆'}</span>
+      {showLabel && (
+        <span>{isFavorited ? 'Salvo nos favoritos' : 'Favoritar evento'}</span>
+      )}
     </button>
   );
 }

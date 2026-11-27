@@ -14,7 +14,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.auth.router import router as auth_router
 from app.api.eventos.router import router as events_router
 from app.api.extracao.router import router as extraction_router
-from app.core.config import ADMIN_EMAIL, ADMIN_NAME, ADMIN_PASSWORD, ADMIN_PROFILE_NAME
+from app.core.config import (
+    ADMIN_EMAIL,
+    ADMIN_NAME,
+    ADMIN_PASSWORD,
+    ADMIN_PROFILE_NAME,
+    ALLOWED_ORIGINS,
+)
 from app.core.security import hash_password
 from app.database.database import Base, SessionLocal, engine
 from app.models.event import Event  # noqa: F401 — registra o model no metadata
@@ -90,11 +96,12 @@ app = FastAPI(
 )
 
 # ── CORS ────────────────────────────────────────────────────────────
-# Permite o frontend React (Vite dev server) acessar a API.
+# Origens configuráveis via ALLOWED_ORIGINS (ex.: URL da Vercel em produção).
+# Evita enviar allow_credentials=True junto com wildcard "*" (conflito da spec CORS).
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Em produção, restringir para a URL do frontend
-    allow_credentials=True,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=ALLOWED_ORIGINS != ["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -106,6 +113,7 @@ app.include_router(extraction_router)
 
 
 @app.get("/", tags=["health"])
+@app.get("/health", tags=["health"])
 def health_check():
-    """Health check — confirma que a API está no ar."""
+    """Health check — confirma que a API está no ar (usado pelo Docker e Render)."""
     return {"status": "ok", "project": "cin-event-hub"}

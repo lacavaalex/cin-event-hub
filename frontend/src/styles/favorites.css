@@ -1,5 +1,5 @@
 .favorites-page {
-  max-width: 800px;
+  max-width: 960px;
   margin: 0 auto;
   padding: 64px 16px;
   color: var(--ink);
@@ -21,6 +21,39 @@
   border: 2px solid var(--ink);
   border-radius: 4px;
   box-shadow: 4px 4px 0 var(--shadow-color);
+}
+.favorites-list {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+.favorites-item {
+  position: relative;
+}
+.favorites-item-action {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 2;
+}
+.favorite-button--details {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px 20px;
+  border: 2px solid var(--ink);
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--surface);
+}
+.favorite-button--details.is-favorited {
+  color: var(--favorite-color);
+  border-color: var(--favorite-color);
 }
 .favorites-id { font-size: 0.875rem; margin: 24px 0; }
 .favorites-id code { background: var(--surface-soft); padding: 2px 6px; border-radius: 4px; }

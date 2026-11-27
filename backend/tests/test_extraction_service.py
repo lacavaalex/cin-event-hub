@@ -386,10 +386,10 @@ def test_ia_lembrete_duplicata_nao_cria_evento_e_registra_log(db_session):
 def test_parser_tambem_interrompe_lembrete_duplicado(db_session):
     _evento_ativo(
         db_session,
-        "Palestra de Segurança 2026",
-        data=dt.date(2025, 11, 25),
+        "Palestra de Segurança 2030",
+        data=dt.date(2030, 11, 25),
     )
-    client = ClientFake([_raw("dup-2", EMAIL_OK, "Palestra de Segurança 2026")])
+    client = ClientFake([_raw("dup-2", EMAIL_OK, "Palestra de Segurança 2030")])
 
     summary = run_extraction(db_session, client)
 

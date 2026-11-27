@@ -107,12 +107,14 @@ def test_gitignore_protege_segredos(caminho, ignorado):
 @pytest.fixture()
 def seed(db_session, monkeypatch):
     monkeypatch.setattr(main_module, "SessionLocal", lambda: db_session)
+    monkeypatch.setattr(main_module, "ADMIN_EMAIL", "admin@cin.ufpe.br")
+    monkeypatch.setattr(main_module, "ADMIN_PASSWORD", "senha-seed-forte-123")
     return main_module._seed_admin
 
 
 def test_seed_cria_admin_na_tabela_usuario(db_session, seed):
     seed()
-    admin = user_repository.get_by_email(db_session, ADMIN_EMAIL)
+    admin = user_repository.get_by_email(db_session, main_module.ADMIN_EMAIL)
     assert admin is not None and admin.is_admin is True
     assert admin.hashed_password != main_module.ADMIN_PASSWORD
     assert verify_password(main_module.ADMIN_PASSWORD, admin.hashed_password)
@@ -121,15 +123,29 @@ def test_seed_cria_admin_na_tabela_usuario(db_session, seed):
 def test_seed_e_idempotente(db_session, seed):
     seed()
     seed()
-    assert db_session.scalar(text("SELECT count(*) FROM usuario WHERE email = :e"), {"e": ADMIN_EMAIL}) == 1
+    assert (
+        db_session.scalar(
+            text("SELECT count(*) FROM usuario WHERE email = :e"),
+            {"e": main_module.ADMIN_EMAIL},
+        )
+        == 1
+    )
 
 
 def test_seed_nao_promove_usuario_comum(db_session, seed):
-    _usuario(db_session, email=ADMIN_EMAIL, is_admin=False)
+    _usuario(db_session, email=main_module.ADMIN_EMAIL, is_admin=False)
     seed()
     db_session.expire_all()
-    usuario = user_repository.get_by_email(db_session, ADMIN_EMAIL)
+    usuario = user_repository.get_by_email(db_session, main_module.ADMIN_EMAIL)
     assert usuario.is_admin is False
+
+
+def test_seed_ignora_quando_credenciais_vazias(db_session, monkeypatch):
+    monkeypatch.setattr(main_module, "SessionLocal", lambda: db_session)
+    monkeypatch.setattr(main_module, "ADMIN_EMAIL", "")
+    monkeypatch.setattr(main_module, "ADMIN_PASSWORD", "")
+    main_module._seed_admin()
+    assert db_session.scalar(text("SELECT count(*) FROM usuario")) == 0
 
 
 # ---------- CT-10..12: login e JWT ----------

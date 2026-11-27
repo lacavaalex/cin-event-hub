@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
+const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/+$/, "");
 
 export class ApiError extends Error {
   constructor(status, detail) {
@@ -57,6 +57,12 @@ export function toFieldErrors(detail) {
 }
 
 const FAVORITES_HEADERS = { "X-User-Id": "1" };
+
+export const getFavorites = (signal) =>
+  request("/events/favorites", {
+    signal,
+    headers: FAVORITES_HEADERS,
+  });
 
 export const favoriteEvent = (id) =>
   request(`/events/${id}/favorite`, {

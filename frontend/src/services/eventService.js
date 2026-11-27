@@ -1,6 +1,6 @@
 import { addDays, todayInRecife } from './upcomingEvents';
 
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/+$/, '');
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
 const LONG_DESC =
@@ -134,7 +134,6 @@ export const TYPE_FILTERS = [
   { key: 'palestra', label: 'Palestra' },
   { key: 'workshop', label: 'Workshop' },
   { key: 'hackathon', label: 'Hackathon' },
-  { key: 'minicurso', label: 'Minicurso' },
   { key: 'outros', label: 'Outros' },
 ];
 

@@ -1,58 +1,32 @@
-# docker-compose.yml — orquestra os 3 containers da aplicação:
+# docker-compose.yml — orquestra os 3 containers locais da aplicação:
 # banco de dados (Postgres), backend (FastAPI) e frontend (React/Nginx).
 #
-# Este arquivo fica na RAIZ do projeto (mesmo nível das pastas backend/
-# e frontend/). As variáveis entre ${...} vêm de um arquivo ".env" na
-# mesma pasta (veja .env.example) — o Docker Compose lê esse .env
-# automaticamente, sem precisar apontar o caminho dele em lugar nenhum.
+# Execução a partir da raiz do repositório:
+#   docker compose --env-file backend/.env up -d --build
 #
-# IMPORTANTE (deploy com Neon): este arquivo é para RODAR LOCALMENTE,
-# com o Postgres também em container (serviço "db" abaixo). Em produção
-# (Render/Railway hospedando backend e frontend), cada serviço é
-# construído a partir do seu próprio Dockerfile diretamente pela
-# plataforma — ninguém "roda este docker-compose.yml na nuvem". Nesse
-# cenário, o serviço "db" nem entra em jogo: o backend recebe a
-# DATABASE_URL do Neon direto nas variáveis de ambiente do painel da
-# plataforma de deploy.
+# IMPORTANTE (produção): no Render/Vercel/Neon cada serviço sobe a partir
+# do seu próprio build/Dockerfile com variáveis configuradas no painel.
 
 services:
-  # --------------------------------------------------------------------
-  # Banco de dados: container LOCAL do Postgres, usado só quando você
-  # roda tudo na sua máquina com `docker compose up`. Em produção com
-  # Neon, este serviço fica sem uso (o backend, hospedado em outro
-  # lugar, aponta DATABASE_URL direto para o Neon).
-  # --------------------------------------------------------------------
   db:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev}
+      POSTGRES_DB: ${POSTGRES_DB:-cin_event_hub}
     volumes:
-      # Volume nomeado: os dados do banco sobrevivem a `docker compose down`
-      # e a rebuilds da imagem. Só somem se você rodar `down -v`
-      # explicitamente (apaga o volume) ou `docker volume rm`.
       - db_data:/var/lib/postgresql/data
+      # Aplica o schema oficial (CHECKs, FKs, defaults UTC-3 e índices) na 1ª inicialização.
+      - ./database/001_schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
     ports:
-      # Exposto no host (5432) só para você conseguir abrir o banco com o
-      # DBeaver/psql da sua máquina durante o desenvolvimento. Em um
-      # ambiente de produção "de verdade" isso normalmente NÃO é exposto
-      # para fora — só o backend, que já está na mesma rede do compose,
-      # precisa enxergar o banco.
       - "5432:5432"
     healthcheck:
-      # Garante que o backend só sobe depois que o Postgres já aceita
-      # conexões (evita o erro clássico de o backend subir mais rápido
-      # que o banco e cair na primeira query).
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-cin_event_hub}"]
       interval: 5s
       timeout: 5s
       retries: 10
 
-  # --------------------------------------------------------------------
-  # Backend: API FastAPI.
-  # --------------------------------------------------------------------
   backend:
     build:
       context: ./backend
@@ -61,46 +35,21 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    env_file:
+      - path: ./backend/.env
+        required: false
     environment:
-      # Monta a URL de conexão a partir das mesmas variáveis usadas pelo
-      # container "db" acima — assim você só define usuário/senha/nome
-      # do banco UMA vez no .env, sem repetir a URL inteira.
-      # "db" aqui é o nome do serviço (vira o hostname dentro da rede
-      # interna do compose) — não é "localhost".
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
-      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
-      # Chave da IA (US 4.2 - middleware Gemini).
-      GEMINI_API_KEY: ${GEMINI_API_KEY}
-      # Credenciais do Gmail API (US 4.1 - captura de e-mails institucionais).
-      # ATENÇÃO: não vi o código real da IESI que faz essa integração, então
-      # não sei os nomes exatos das variáveis que ele espera — ajuste estes
-      # três nomes para bater com o que o `os.environ[...]` desse módulo
-      # realmente usa.
-      GMAIL_CLIENT_ID: ${GMAIL_CLIENT_ID}
-      GMAIL_CLIENT_SECRET: ${GMAIL_CLIENT_SECRET}
-      GMAIL_REFRESH_TOKEN: ${GMAIL_REFRESH_TOKEN}
-      # Origens liberadas no CORS (main.py). Em dev local, só o Vite.
-      # Em produção (Render/Railway), esta variável é redefinida no painel
-      # do próprio serviço para a URL pública do frontend — não aqui.
+      # Sobrescreve DATABASE_URL para usar o hostname interno "db" da rede do Compose.
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-dev}@db:5432/${POSTGRES_DB:-cin_event_hub}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173}
     ports:
       - "8000:8000"
 
-  # --------------------------------------------------------------------
-  # Frontend: build do React servido pelo Nginx.
-  # --------------------------------------------------------------------
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        # Repare que isto está em "build.args", não em "environment": como
-        # explicado no Dockerfile do frontend, o Vite precisa desse valor
-        # NA HORA DO BUILD, não em tempo de execução do container.
-        # http://localhost:8000 funciona porque é o navegador do USUÁRIO
-        # (fora do Docker) quem vai chamar essa URL, e para ele o backend
-        # aparece em localhost:8000 (a porta publicada acima).
         VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
     restart: unless-stopped
     depends_on:

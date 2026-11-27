@@ -5,7 +5,14 @@ import json
 import os
 import re
 
-from app.core.config import GEMINI_API_KEY, GEMINI_MAX_OUTPUT_TOKENS, GEMINI_MODEL
+from app.core.config import (
+    GEMINI_API_KEY,
+    GEMINI_MAX_OUTPUT_TOKENS,
+    GEMINI_MODEL,
+    OPENROUTER_API_KEY,
+    OPENROUTER_BASE_URL,
+    OPENROUTER_DEFAULT_MODEL,
+)
 from app.services.extracao_email.parser import ParsedEvent
 
 REQUIRED_FIELDS = ("title", "date", "time", "location")
@@ -41,10 +48,18 @@ class GeminiClient:
         max_output_tokens: int | None = None,
     ) -> None:
         # Lê a chave do OpenRouter no .env; se não existir, usa o fallback do config
-        self.api_key = api_key or os.getenv("OPENROUTER_API_KEY") or GEMINI_API_KEY
-        self.model = model or os.getenv("GEMINI_MODEL") or GEMINI_MODEL
+        self.api_key = (
+            api_key
+            if api_key is not None
+            else (os.getenv("OPENROUTER_API_KEY") or OPENROUTER_API_KEY or GEMINI_API_KEY)
+        )
+        configured_model = model or os.getenv("GEMINI_MODEL") or GEMINI_MODEL
+        # No OpenRouter os modelos Google exigem prefixo "<provedor>/" (ex.: google/...)
+        if "/" not in configured_model:
+            configured_model = OPENROUTER_DEFAULT_MODEL
+        self.model = configured_model
         self.max_output_tokens = max_output_tokens or GEMINI_MAX_OUTPUT_TOKENS
-        self.base_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+        self.base_url = os.getenv("OPENROUTER_BASE_URL", OPENROUTER_BASE_URL)
 
     def is_configured(self) -> bool:
         """Indica se há chave de IA configurada no servidor."""
