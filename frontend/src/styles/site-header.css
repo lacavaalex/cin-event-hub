@@ -28,6 +28,16 @@
   letter-spacing: -0.02em;
   color: var(--ink);
   text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.site-brand-logo {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
 .site-nav {
@@ -65,3 +75,19 @@
 .site-header .theme-toggle { background: var(--surface); color: var(--ink); }
 .site-header .theme-toggle:hover { background: var(--surface-soft); }
 @media (max-width: 640px) { .site-actions { width: 100%; } }
+
+.logo-light {
+  display: block;
+}
+
+.logo-dark {
+  display: none;
+}
+
+[data-theme='dark'] .logo-light {
+  display: none;
+}
+
+[data-theme='dark'] .logo-dark {
+  display: block;
+}

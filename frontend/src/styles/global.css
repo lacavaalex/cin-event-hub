@@ -1,6 +1,18 @@
 /* Tokens semânticos compartilhados pela interface pública e administrativa. */
 :root {
   color-scheme: light;
+  --font-body: system-ui, sans-serif;
+  --font-mono: ui-monospace, 'JetBrains Mono', monospace;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --shadow-elevated: 0 10px 30px rgb(0 0 0 / 0.25);
   --red: #b20e2e;
   --red-dark: #8c0a22;
   --white: #ffffff;
@@ -66,6 +78,7 @@
   --input-bg: #20242b;
   --line: rgb(242 244 248 / 0.25);
   --shadow-color: #08090d;
+  --shadow-elevated: 0 10px 30px rgb(0 0 0 / 0.55);
   --accent-text: #ff9ab0;
   --focus-ring: #ffb8c7;
   --nav-bg: #21252d;
@@ -101,7 +114,7 @@
 html { background: var(--page); }
 body {
   margin: 0;
-  font-family: system-ui, sans-serif;
+  font-family: var(--font-body);
   color: var(--ink);
   background: var(--page);
 }

@@ -13,7 +13,17 @@ export default function SiteHeader() {
     <header className="site-header">
       <div className="site-header-inner">
         <NavLink to="/" end className="site-brand">
-          Hub de Eventos
+          <img
+            src="/logo-hub.png"
+            alt=""
+            className="site-brand-logo logo-light"
+          />
+          <img
+            src="/logo-hub-dark.png"
+            alt=""
+            className="site-brand-logo logo-dark"
+          />
+          <span>Hub de Eventos</span>
         </NavLink>
         <div className="site-actions">
           <nav className="site-nav" aria-label="Navegação principal">
