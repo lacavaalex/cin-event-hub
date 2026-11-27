@@ -1,6 +1,8 @@
 # Refatoração do banco de dados: decisões e mudanças (v1.0)
 
-Documento de mudanças do banco combinado na retrospectiva da Sprint 4 (30/10/2026): registra **o que mudou**, **por quê**, **o que ficou de fora** e **o que foi mexido em código de outras pessoas**. Complementa [`migracao-postgresql.md`](migracao-postgresql.md) (o backend em PostgreSQL) e [`paginacao-eventos.md`](paginacao-eventos.md) (IESI-71/70). Esses dois chegam à develop junto com a branch `refactor/banco-testes-seed` (ver o estado na seção 1).
+> **Nota de vigência (27/11/2026):** este documento é um registro histórico do banco na época em que foi escrito. O schema vigente é o `database/001_schema.sql`, com quatro tabelas (`usuario`, `events`, `extracao`, `favorito`). Referências a `email_associado`, às tabelas `admins` e `extraction_logs` e às colunas antigas de `extracao` (`message_id`, `thread_id`, `body_hash`, `json_output`) não refletem o schema atual.
+
+Documento de mudanças do banco combinado na retrospectiva da Sprint 4 (30/10/2026): registra **o que mudou**, **por quê**, **o que ficou de fora** e **o que foi mexido em código de outras pessoas**. Complementa [`migracao-postgresql.md`](migracao-postgresql.md) (o backend em PostgreSQL) e [`paginacao-eventos.md`](../../reports/technical/paginacao-eventos.md) (IESI-71/70). Esses dois chegam à develop junto com a branch `refactor/banco-testes-seed` (ver o estado na seção 1).
 
 **Fontes:** Backlog v3 (DoD D1–D10, riscos), Resumo da Sprint Planning 02, modelo relacional e EER do projeto, schema do José (`Banco-de-dados-completo`).
 **Regra usada:** a user story manda; na falta dela, o modelo relacional/EER; na falta dos dois, a menor mudança que não quebra nada. Cada task só faz o que a própria task pede.
@@ -17,7 +19,7 @@ Documento de mudanças do banco combinado na retrospectiva da Sprint 4 (30/10/20
 | PR #19 IESI-71 | Bruno | LIMIT/OFFSET na consulta de eventos | mesclado em `refactor/banco-testes-seed` |
 | PR #20 IESI-70 | Bruno | `GET /events` paginado | mesclado em `refactor/banco-testes-seed` (06/11) |
 | `fix(database)` índice no teste | Bruno | `001_schema_test.sql` passa a esperar `uk_sucesso_de_extracao` (nome dado pelo José) | patch pronto; só é necessário quando os commits do José entrarem na develop (ver P1) |
-| IESI-60 | Bruno | minimização de dados dos e-mails (LGPD) — ver [`lgpd-minimizacao-dados.md`](lgpd-minimizacao-dados.md) | este PR |
+| IESI-60 | Bruno | minimização de dados dos e-mails (LGPD) — ver [`lgpd-minimizacao-dados.md`](../../reports/technical/lgpd-minimizacao-dados.md) | este PR |
 
 **Estado em 07/11/2026:** a `develop` termina no PR #16 e **ainda não tem** o banco do José nem a branch `refactor/banco-testes-seed` (que reúne #17–#20). Nenhum PR está aberto. A `Banco-de-dados-completo` do José tem 2 commits (seeds 003–006 e o índice renomeado) que a branch do Bruno não tem. A IESI-60 foi feita sobre a develop atual e não depende de nada disso. Quando o banco entrar, a ordem é: banco do José → `refactor/banco-testes-seed` → `fix(database)` do índice. Depois de cada merge, **apagar a branch** (combinado da Sprint 4).
 
@@ -112,4 +114,4 @@ Combinado da Sprint 4: o que não entra agora fica documentado para o time avali
 | P6 | `requirements.txt` fixa `pydantic[email]==2.9.2`, mas `google-genai==2.30.1` (US 4.2) exige `pydantic>=2.12.5` | `pip install -r requirements.txt` falha do zero; dono da US 4.2 precisa resolver |
 | P7 | Home do PR #14 pagina no navegador sobre `getEvents()` | Com a API paginada ela só vê os 20 primeiros eventos; é a IESI-72 |
 | P8 | `Security.py` e `security.py` versionados juntos em `backend/app/core/` | Colide em Windows/macOS (mesmo nome sem diferenciar maiúsculas); manter só um |
-| P9 | Mascarar também a descrição publicada do evento (LGPD) | Decisão L2 em [`lgpd-minimizacao-dados.md`](lgpd-minimizacao-dados.md) |
+| P9 | Mascarar também a descrição publicada do evento (LGPD) | Decisão L2 em [`lgpd-minimizacao-dados.md`](../../reports/technical/lgpd-minimizacao-dados.md) |

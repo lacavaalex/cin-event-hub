@@ -1,5 +1,7 @@
 # Migração do backend para PostgreSQL
 
+> **Nota de vigência (27/11/2026):** este documento é um registro histórico do banco na época em que foi escrito. O schema vigente é o `database/001_schema.sql`, com quatro tabelas (`usuario`, `events`, `extracao`, `favorito`). Referências a `email_associado`, às tabelas `admins` e `extraction_logs` e às colunas antigas de `extracao` (`message_id`, `thread_id`, `body_hash`, `json_output`) não refletem o schema atual.
+
 Este documento registra **por que** o backend começou em SQLite, **o que mudou** para
 ele passar a rodar (e ser testado) em PostgreSQL e **quais decisões** foram tomadas
 no caminho, com os trade-offs. Para rodar tudo, vá direto para
@@ -71,7 +73,7 @@ O código dos repositórios, serviços e rotas **não muda**.
 | `backend/tests/test_delete_evento_com_log.py` | **Novo.** Apagar evento extraído de e-mail mantém o log. |
 | `database/001_schema.sql` | Regra do link (item 2). |
 | `database/tests/001_schema_test.sql` | +3 verificações da regra do link. |
-| `docs/migracao-postgresql.md` | Este documento. |
+| `docs/architecture/database/migracao-postgresql.md` | Este documento. |
 
 ## 5. Decisões e trade-offs
 

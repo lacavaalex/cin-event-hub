@@ -1,5 +1,7 @@
 # LGPD: minimização dos dados extraídos dos e-mails (IESI-60)
 
+> **Nota de vigência (27/11/2026):** este documento é um registro histórico do banco na época em que foi escrito. O schema vigente é o `database/001_schema.sql`, com quatro tabelas (`usuario`, `events`, `extracao`, `favorito`). Referências a `email_associado`, às tabelas `admins` e `extraction_logs` e às colunas antigas de `extracao` (`message_id`, `thread_id`, `body_hash`, `json_output`) não refletem o schema atual.
+
 **Task:** IESI-60 — *US 4.1 a 4.6: [LGPD/Segurança] Revisar logs e banco para garantir minimização de dados extraídos dos e-mails.*
 **Critério:** DoD **D8** do Backlog v3 — *"nenhum dado pessoal irrelevante é persistido; e-mails processados só contribuem com dados pertinentes aos eventos"*. Risco **R3**: o backend lê a caixa institucional.
 
