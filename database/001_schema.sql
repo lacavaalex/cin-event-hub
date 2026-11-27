@@ -1,0 +1,124 @@
+CREATE TABLE usuario ( 
+	id_usuario 		INTEGER 		GENERATED ALWAYS AS IDENTITY, 
+	nome 			VARCHAR(90) 	NOT NULL, 
+	email 			VARCHAR(200) 	NOT NULL,
+	senha_hash 		VARCHAR(100)	NOT NULL,
+	nome_perfil 	VARCHAR(50)		NOT NULL,
+	is_admin 		BOOLEAN 		NOT NULL DEFAULT FALSE,
+	-- Data de cadastro no fuso fixo de Recife (UTC-3, sem horário de verão):
+	-- independe do TimeZone da sessão e de arquivos tzdata no servidor PostgreSQL.
+	dt_cadastro		DATE			NOT NULL DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE INTERVAL '-03:00')::date,
+
+	CONSTRAINT pk_usuario PRIMARY KEY (id_usuario),
+	CONSTRAINT uk_usuario_email UNIQUE (email),
+
+	CONSTRAINT ck_usuario_nome_preenchido       CHECK (btrim(nome) <> ''),
+	CONSTRAINT ck_usuario_email_preenchido       CHECK (btrim(email) <> ''),
+	CONSTRAINT ck_usuario_senha_hash_preenchida  CHECK (btrim(senha_hash) <> ''),
+	CONSTRAINT ck_usuario_nome_perfil_preenchido CHECK (btrim(nome_perfil) <> '')
+);
+
+
+CREATE TABLE events (
+	id_event         INTEGER      GENERATED ALWAYS AS IDENTITY,
+    admin_id          INTEGER,
+    title             VARCHAR(200) NOT NULL,
+    description       TEXT         NOT NULL,
+    capacity          INTEGER,
+    event_type        VARCHAR(50)  NOT NULL,
+    int_event_date    DATE         NOT NULL,
+    int_event_time    TIME         NOT NULL,
+    end_event_date    DATE,
+    end_event_time    TIME,
+    event_location    VARCHAR(200) NOT NULL,
+    registration_link VARCHAR(500) NOT NULL,
+    status            VARCHAR(20)  NOT NULL DEFAULT 'active',
+    origin            VARCHAR(20)  NOT NULL DEFAULT 'manual',
+    created_at        TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at        TIMESTAMPTZ  NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+	CONSTRAINT pk_events PRIMARY KEY (id_event),
+	CONSTRAINT fk_events_usuario
+		FOREIGN KEY (admin_id) REFERENCES usuario(id_usuario) ON DELETE SET NULL,
+		
+	CONSTRAINT ck_events_title_preenchido       CHECK (btrim(title) <> ''),
+    CONSTRAINT ck_events_description_preenchida CHECK (btrim(description) <> ''),
+    CONSTRAINT ck_events_location_preenchido    CHECK (btrim(event_location) <> ''),
+
+	CONSTRAINT ck_events_event_type
+        CHECK (event_type IN ('Palestra', 'Workshop', 'Hackathon', 'Outro')),
+    -- link http(s) obrigatório nos eventos manuais (US 2.1). Evento extraído de
+    -- e-mail (US 4.1) pode vir sem link: o parser grava '' quando não acha URL e a
+    -- coluna é NOT NULL. Por isso o vazio só é aceito fora da origem 'manual'; link
+    -- preenchido precisa ser http(s) em qualquer origem.
+    CONSTRAINT ck_events_registration_link_http
+        CHECK (registration_link ~* '^https?://\S+$'
+               OR (origin <> 'manual' AND registration_link = '')),
+    CONSTRAINT ck_events_status CHECK (status IN ('active', 'inactive')),
+    CONSTRAINT ck_events_capacity CHECK (capacity IS NULL OR capacity > 0),
+    CONSTRAINT ck_events_fim_completo
+        CHECK ((end_event_date IS NULL) = (end_event_time IS NULL)),
+    CONSTRAINT ck_events_fim_apos_inicio
+        CHECK (end_event_date IS NULL OR (end_event_date, end_event_time) >= (int_event_date, int_event_time))
+);
+
+-- Log de extração de e-mails: espelha o model ExtractionLog
+-- (backend/app/models/extraction_log.py). Os nomes das colunas são os mesmos
+-- dos atributos do model, para o model só precisar apontar para esta tabela.
+-- Minimização de dados (IESI-60): o corpo do e-mail não é guardado, só o id da
+-- mensagem e os campos já extraídos.
+-- Vem depois de events porque aponta para o evento gerado (event_id).
+CREATE TABLE extracao (
+	id					INTEGER			GENERATED ALWAYS AS IDENTITY,
+	gmail_message_id	VARCHAR(64)		NOT NULL,
+	source_email		VARCHAR(255)	NOT NULL,
+	status				VARCHAR(20)		NOT NULL,
+	extracted_data		JSON,
+	error_message		VARCHAR(500),
+	event_id			INTEGER,
+	created_at			TIMESTAMPTZ		NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+	CONSTRAINT pk_extracao PRIMARY KEY (id),
+	-- idempotência da varredura: cada mensagem do Gmail é registrada uma vez só
+	CONSTRAINT uk_extracao_gmail_message_id UNIQUE (gmail_message_id),
+	-- o log é histórico e sobrevive à exclusão do evento (US 2.3 / US 5.1)
+	CONSTRAINT fk_extracao_events
+		FOREIGN KEY (event_id) REFERENCES events(id_event) ON DELETE SET NULL,
+
+	CONSTRAINT ck_extracao_gmail_message_id_preenchido CHECK (btrim(gmail_message_id) <> ''),
+	-- processado (parser) e processado_ia (Gemini) publicaram evento; ignorado, erro,
+	-- extracao_incompleta (validação recusou, US 4.4), nao_processado (legado, US 4.2) e
+	-- ignorado_duplicata (rótulo "Ignorado - Duplicata/Lembrete", US 4.5) não.
+	-- Os sete valores são os usados pelo extraction_service desta branch.
+	CONSTRAINT ck_extracao_status
+		CHECK (status IN ('processado', 'processado_ia', 'ignorado', 'nao_processado',
+		                  'extracao_incompleta', 'ignorado_duplicata', 'erro')),
+	-- só extração que publicou evento (processado ou processado_ia) tem event_id
+	CONSTRAINT ck_extracao_evento_so_processado
+		CHECK (event_id IS NULL OR status IN ('processado', 'processado_ia'))
+);
+
+COMMENT ON COLUMN extracao.status IS
+	'Valores: processado, processado_ia, ignorado, nao_processado, extracao_incompleta, '
+	'ignorado_duplicata (= "Ignorado - Duplicata/Lembrete", US 4.5), erro';
+
+CREATE TABLE favorito (
+	id_usuario	  	INTEGER		NOT NULL,
+	id_events      	INTEGER		NOT NULL,
+
+	CONSTRAINT pk_favorito PRIMARY KEY (id_usuario, id_events),
+	CONSTRAINT fk_favorito_usuario FOREIGN KEY (id_usuario) REFERENCES usuario(id_usuario) ON DELETE CASCADE,
+	CONSTRAINT fk_favorito_evento FOREIGN KEY (id_events) REFERENCES events(id_event) ON DELETE CASCADE
+);
+
+-- Índices de events. Os nomes ficam iguais aos do Index() em backend/app/models/event.py.
+-- Listagem pública (US 3.1): WHERE status = 'active' ORDER BY data, hora, id + LIMIT/OFFSET.
+-- Índice parcial: só guarda os eventos ativos, que são os que a listagem lê.
+CREATE INDEX ix_events_ativos_data
+	ON events (int_event_date, int_event_time, id_event)
+	WHERE status = 'active';
+-- Filtro por tipo (Palestra, Workshop, ...).
+CREATE INDEX ix_events_event_type ON events (event_type);
+-- Busca por título sem diferenciar maiúsculas: serve para lower(title) = ... e
+-- lower(title) LIKE 'prefixo%'. Não serve para ILIKE '%meio%' (isso pede pg_trgm).
+CREATE INDEX ix_events_title_lower ON events (lower(title) text_pattern_ops);

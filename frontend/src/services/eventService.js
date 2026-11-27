@@ -1,0 +1,154 @@
+import { addDays, todayInRecife } from './upcomingEvents';
+
+const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/+$/, '');
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
+
+const LONG_DESC =
+  'Uma tarde inteira dedicada a inteligência artificial generativa. Vamos falar sobre como funcionam os modelos de linguagem, o que mudou nos últimos anos e quais são as aplicações práticas em empresas, pesquisa e educação. Haverá demonstrações ao vivo, discussão sobre limites e riscos, e um momento final de perguntas com os palestrantes. Traga seu notebook se quiser acompanhar os exemplos em código.';
+
+const MOCK_EVENTS = [
+  { id: 1, title: 'Hackathon CIn 2026', description: 'Maratona de 24h.', date: '2026-11-07', time: '09:00', location: 'Térreo do CIn', type: 'Hackathon', registration_link: 'https://example.com/hackathon' },
+  { id: 2, title: 'Palestra de IA Generativa', description: LONG_DESC, date: '2026-10-20', time: '19:00', location: 'Auditório do CIn', type: 'Palestra', registration_link: 'https://example.com/palestra-ia' },
+  { id: 3, title: 'Workshop de React', description: 'Do zero ao primeiro app.', date: '2026-10-20', time: '14:00', location: 'Sala E112', type: 'Workshop', registration_link: 'https://example.com/react' },
+  { id: 4, title: 'Minicurso de Git e GitHub', description: 'Fluxo de trabalho em equipe.', date: '2026-10-28', time: '10:30', location: 'Laboratório G4', type: 'Minicurso', registration_link: 'https://example.com/git' },
+  { id: 5, title: 'Palestra sobre Machine Learning', description: 'Casos reais na indústria.', date: '2026-10-15', time: '16:00', location: 'Auditório do CIn', type: 'Palestra', registration_link: 'https://example.com/ml' },
+  { id: 6, title: 'Workshop de UX para Devs', description: 'Pesquisa e prototipação.', date: '2026-12-02', time: '15:00', location: 'Sala A215', type: 'Workshop', registration_link: 'https://example.com/ux' },
+];
+
+export function sortByDate(events) {
+  return [...events].sort((a, b) =>
+    `${a.date}T${a.time}`.localeCompare(`${b.date}T${b.time}`)
+  );
+}
+
+export async function getEvents({ page = 1, pageSize } = {}) {
+  const params = new URLSearchParams();
+  if (page !== 1) params.set('page', String(page));
+  if (pageSize) params.set('page_size', String(pageSize));
+  const query = params.toString() ? `?${params}` : '';
+
+  if (USE_MOCK) {
+    await new Promise((r) => setTimeout(r, 400));
+    const size = pageSize ?? MOCK_EVENTS.length;
+    return MOCK_EVENTS.slice((page - 1) * size, page * size);
+  }
+  let res;
+  try {
+    res = await fetch(`${API_URL}/events${query}`);
+  } catch {
+    throw new Error('Erro de conexão. Tente novamente.');
+  }
+  if (!res.ok) throw new Error('Não foi possível carregar os eventos.');
+  const data = await res.json();
+  // GET /events agora é paginado ({ items, page, total_pages }, IESI-70). A Home
+  // ainda mostra só a primeira página até a paginação do front (IESI-72).
+  return Array.isArray(data) ? data : data.items;
+}
+
+export async function getEventById(id) {
+  if (USE_MOCK) {
+    await new Promise((r) => setTimeout(r, 300));
+    const event = MOCK_EVENTS.find((e) => String(e.id) === String(id));
+    if (!event) throw new Error('NOT_FOUND');
+    return event;
+  }
+  let res;
+  try {
+    res = await fetch(`${API_URL}/events/${id}`);
+  } catch {
+    throw new Error('Erro de conexão. Tente novamente.');
+  }
+  if (res.status === 404) throw new Error('NOT_FOUND');
+  if (!res.ok) throw new Error('Não foi possível carregar o evento.');
+  return res.json();
+}
+
+function normalize(text) {
+  return String(text ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // ignora acentos
+    .toLowerCase()
+    .trim();
+}
+
+// Busca o termo (como trecho contínuo) no título OU na descrição
+export function filterByKeyword(events, term) {
+  const q = normalize(term);
+  if (!q) return events;
+  return events.filter(
+    (e) => normalize(e.title).includes(q) || normalize(e.description).includes(q)
+  );
+}
+
+// Eventos extras só para testar a paginação (US 3.6): 6 originais + 44 = 50
+MOCK_EVENTS.push(
+  ...Array.from({ length: 44 }, (_, i) => ({
+    id: 100 + i,
+    title: `Encontro de estudos ${String(i + 1).padStart(2, '0')}`,
+    description: 'Evento gerado para testar a paginação.',
+    date: `2027-01-${String(1 + (i % 28)).padStart(2, '0')}`,
+    time: `${String(8 + (i % 10)).padStart(2, '0')}:00`,
+    location: 'Sala A101',
+    type: ['Workshop', 'Minicurso', 'Hackathon'][i % 3],
+    registration_link: 'https://example.com/encontro',
+  }))
+);
+
+// Eventos relativos a hoje para que a faixa "Esta semana" (US 3.7) seja
+// demonstrável em VITE_USE_MOCK=true, independentemente da data da máquina.
+const MOCK_TODAY = todayInRecife();
+MOCK_EVENTS.push(
+  {
+    id: 200,
+    title: 'Palestra de Dados Abertos',
+    description: 'Usos de dados públicos no CIn.',
+    date: MOCK_TODAY,
+    time: '09:30',
+    location: 'Auditório do CIn',
+    type: 'Palestra',
+    registration_link: 'https://example.com/dados-abertos',
+  },
+  {
+    id: 201,
+    title: 'Workshop de Testes Automatizados',
+    description: 'Da primeira asserção à integração contínua.',
+    date: addDays(MOCK_TODAY, 2),
+    time: '14:00',
+    location: 'Laboratório G4',
+    type: 'Workshop',
+    registration_link: 'https://example.com/testes',
+  },
+  {
+    id: 202,
+    title: 'Hackathon Relâmpago',
+    description: 'Seis horas para prototipar uma ideia.',
+    date: addDays(MOCK_TODAY, 5),
+    time: '18:00',
+    location: 'Térreo do CIn',
+    type: 'Hackathon',
+    registration_link: 'https://example.com/hackathon-relampago',
+  }
+);
+
+export const TYPE_FILTERS = [
+  { key: 'palestra', label: 'Palestra' },
+  { key: 'workshop', label: 'Workshop' },
+  { key: 'hackathon', label: 'Hackathon' },
+  { key: 'outros', label: 'Outros' },
+];
+
+// Converte o tipo vindo da API em uma chave de filtro ("Palestra" -> "palestra");
+// qualquer tipo desconhecido cai em "outros"
+export function typeKey(type) {
+  const slug = String(type ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+  return TYPE_FILTERS.some((t) => t.key === slug) ? slug : 'outros';
+}
+
+export function filterByType(events, key) {
+  if (!key) return events;
+  return events.filter((e) => typeKey(e.event_type ?? e.type) === key);
+}

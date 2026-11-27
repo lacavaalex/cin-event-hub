@@ -1,0 +1,362 @@
+"""Orquestração da extração automática de e-mails (US 4.1 + 4.2 + 4.4 + 4.5).
+
+Fluxo por e-mail ainda não processado (idempotência por ``message_id``):
+
+1. Parser estruturado (US 4.1). Se extrair os campos obrigatórios, segue para a
+   verificação de duplicata (item 4) antes de criar o ``Event``.
+2. Se faltarem dados, cai no **fallback de IA** (US 4.2), quando o Gemini está
+   configurado:
+   - IA identifica evento e extrai os campos → **validação autónoma (US 4.4 /
+     IESI-75)**: estrutura íntegra e data não passada → segue para a verificação
+     de duplicata (item 4); caso contrário o evento é **silenciosamente
+     descartado** + log "extracao_incompleta";
+   - IA conclui que **não é evento** → log "ignorado";
+   - IA confirma evento, mas faltam campos obrigatórios → descarte + log
+     "extracao_incompleta" (contado em ``unprocessed``; alerta em
+     ``GET /extraction/alerts``).
+3. Se a IA **não** está configurada, mantém o comportamento da US 4.1 (sem dados
+   obrigatórios → "ignorado").
+4. **Desduplicação de lembretes (US 4.5 / IESI-76 + IESI-77):** antes de
+   persistir, o repositório procura um evento ativo com título igual/similar e
+   mesma data. Se existir, **nenhum evento é criado** e o e-mail é registado com
+   o status "ignorado_duplicata" (rótulo "Ignorado - Duplicata/Lembrete").
+5. Falhas inesperadas (incl. queda da API do Gemini) → log "erro".
+
+Os registos "extracao_incompleta" alimentam o dashboard de monitorização
+(US 4.3) — o consumidor do dashboard fica fora deste escopo.
+"""
+
+from __future__ import annotations
+
+import datetime as dt
+import json
+from dataclasses import asdict, dataclass
+from zoneinfo import ZoneInfo
+
+from sqlalchemy.orm import Session
+
+from app.models.event import Event
+from app.models.extraction_log import ExtractionLog
+from app.repositories import event_repository, extraction_log_repository
+from app.services.extracao_email.gmail_client import GmailClient, RawEmail
+from app.services.extracao_email.minimizacao import (
+    dominio_do_remetente,
+    mascarar_dados_pessoais,
+)
+from app.services.extracao_email.parser import (
+    InsufficientDataError,
+    ParsedEvent,
+    parse_email,
+)
+from app.services.ia_gemini.gemini_client import (
+    GeminiClient,
+    NotAnEventError,
+    UnprocessableEventError,
+)
+from app.services.validacao import ValidationDecision, evaluate
+
+STATUS_PROCESSADO = "processado"
+STATUS_PROCESSADO_IA = "processado_ia"
+STATUS_IGNORADO = "ignorado"
+STATUS_NAO_PROCESSADO = "nao_processado"   # legado (pré-US 4.4) — ainda listado nos alertas
+STATUS_EXTRACAO_INCOMPLETA = "extracao_incompleta"  # US 4.4: validação recusou
+STATUS_IGNORADO_DUPLICATA = "ignorado_duplicata"  # US 4.5: lembrete de evento ativo
+LABEL_IGNORADO_DUPLICATA = "Ignorado - Duplicata/Lembrete"
+STATUS_ERRO = "erro"
+
+_LOCAL_TZ = ZoneInfo("America/Recife")
+
+
+@dataclass
+class _LastRunState:
+    last_run_at: dt.datetime | None = None
+    last_run_failed: bool = False
+    last_error: str | None = None
+
+
+_last_run_state = _LastRunState()
+
+
+@dataclass
+class ExtractionSummary:
+    """Resultado de um ciclo de extração — usado no endpoint e no log do job."""
+
+    fetched: int = 0
+    processed: int = 0      # extraídos pelo parser estruturado (US 4.1)
+    processed_ia: int = 0   # extraídos pelo Gemini e publicados (US 4.2 + 4.4)
+    ignored: int = 0
+    unprocessed: int = 0    # IA não extraiu campos obrigatórios (alerta)
+    discarded: int = 0      # validação autónoma descartou o evento (US 4.4)
+    reminders_ignored: int = 0  # US 4.5: lembrete duplicado, sem novo evento
+    errors: int = 0
+    duplicates: int = 0     # mensagens Gmail já vistas (idempotência, US 4.1)
+    message: str = ""
+
+
+def run_extraction(
+    db: Session,
+    client: GmailClient | None = None,
+    gemini_client: GeminiClient | None = None,
+) -> ExtractionSummary:
+    """Executa um ciclo completo de extração e persistência de eventos."""
+    summary = ExtractionSummary()
+    if client is None:
+        client = GmailClient()
+    if gemini_client is None:
+        gemini_client = GeminiClient()
+
+    if not client.is_configured():
+        summary.message = "extração não executada: credenciais/token do Gmail não configurados"
+        return summary
+
+    try:
+        emails = client.fetch_new_emails()
+    except Exception as exc:  # rede/quota — retentativa é a US 4.6 (fora deste escopo)
+        summary.message = f"falha ao buscar e-mails: {exc}"
+        _last_run_state.last_run_at = dt.datetime.now(_LOCAL_TZ)
+        _last_run_state.last_run_failed = True
+        _last_run_state.last_error = _short(exc)
+        return summary
+
+    summary.fetched = len(emails)
+    for raw in emails:
+        if extraction_log_repository.get_by_message_id(db, raw.message_id):
+            summary.duplicates += 1
+            continue
+        _process_one(db, raw, summary, gemini_client)
+
+    _last_run_state.last_run_at = dt.datetime.now(_LOCAL_TZ)
+    _last_run_state.last_run_failed = False
+    _last_run_state.last_error = None
+    return summary
+
+
+def list_alerts(db: Session, limit: int = 50) -> list[ExtractionLog]:
+    """Lista alertas de extração para curadoria do administrador (US 4.2 + US 4.4)."""
+    return extraction_log_repository.list_by_statuses(
+        db,
+        [STATUS_EXTRACAO_INCOMPLETA, STATUS_NAO_PROCESSADO],
+        limit,
+    )
+
+
+def get_status(db: Session, limit: int = 20) -> dict:
+    """Consolida o status operacional da extração para o painel admin (US 4.3)."""
+    counts = extraction_log_repository.count_by_status(db)
+    total_logs = sum(counts.values())
+    total_processed = counts.get(STATUS_PROCESSADO, 0) + counts.get(STATUS_PROCESSADO_IA, 0)
+    last_run_at = _last_run_state.last_run_at or extraction_log_repository.get_last_created_at(db)
+    recent_processed = extraction_log_repository.list_by_statuses(
+        db,
+        [STATUS_PROCESSADO, STATUS_PROCESSADO_IA],
+        limit,
+    )
+    recent_errors = extraction_log_repository.list_by_statuses(
+        db,
+        [STATUS_ERRO, STATUS_EXTRACAO_INCOMPLETA, STATUS_NAO_PROCESSADO],
+        limit,
+    )
+    return {
+        "total_logs": total_logs,
+        "total_processed": total_processed,
+        "counts_by_status": counts,
+        "last_run_at": last_run_at,
+        "last_run_failed": _last_run_state.last_run_failed,
+        "last_error": _last_run_state.last_error,
+        "recent_processed": recent_processed,
+        "recent_errors": recent_errors,
+    }
+
+
+def _process_one(
+    db: Session,
+    raw: RawEmail,
+    summary: ExtractionSummary,
+    gemini_client: GeminiClient,
+) -> None:
+    try:
+        parsed = parse_email(raw.subject, raw.body)
+    except InsufficientDataError:
+        _fallback_ia(db, raw, summary, gemini_client)
+        return
+    except Exception as exc:
+        _log(db, raw, STATUS_ERRO, error_message=_short(exc))
+        summary.errors += 1
+        return
+
+    # US 4.4 / BE-120: validação autônoma também no caminho do parser estruturado
+    # (eventos com data passada são descartados e registrados como extracao_incompleta).
+    payload = asdict(parsed)
+    result = evaluate(payload)
+    if result.decision is not ValidationDecision.PUBLICAR:
+        _log(
+            db,
+            raw,
+            STATUS_EXTRACAO_INCOMPLETA,
+            extracted_data=json.dumps(payload, default=str, ensure_ascii=False),
+            error_message=_short(f"evento descartado pela validação: {', '.join(result.reason_texts)}"),
+        )
+        summary.discarded += 1
+        return
+
+    if _persist(db, raw, parsed, summary, status="active", log_status=STATUS_PROCESSADO):
+        summary.processed += 1
+
+
+def _fallback_ia(
+    db: Session,
+    raw: RawEmail,
+    summary: ExtractionSummary,
+    gemini_client: GeminiClient,
+) -> None:
+    """US 4.2: tenta a IA para e-mails que o parser estruturado não entendeu."""
+    if not gemini_client.is_configured():
+        _log(
+            db,
+            raw,
+            STATUS_IGNORADO,
+            error_message="e-mail sem dados obrigatórios (IA desativada)",
+        )
+        summary.ignored += 1
+        return
+
+    try:
+        parsed = gemini_client.extract_event(raw.subject, raw.body)
+    except NotAnEventError:
+        _log(db, raw, STATUS_IGNORADO, error_message="e-mail não classificado como evento")
+        summary.ignored += 1
+        return
+    except UnprocessableEventError as exc:
+        # US 4.4: extração incompleta → descarte silencioso + registo para o
+        # dashboard (contado como "não processado" para o alerta da US 4.2).
+        _log(
+            db,
+            raw,
+            STATUS_EXTRACAO_INCOMPLETA,
+            error_message=_short(f"IA não extraiu campos obrigatórios: {', '.join(exc.missing)}"),
+        )
+        summary.unprocessed += 1
+        return
+    except Exception as exc:  # falha operacional do Gemini — retentativa é a US 4.6
+        _log(db, raw, STATUS_ERRO, error_message=_short(exc))
+        summary.errors += 1
+        return
+
+    # US 4.4 / IESI-75: validação autónoma (estrutura + data futura) antes de
+    # persistir — válida publica como "active", inválida é descartada com registo.
+    payload = asdict(parsed)
+    result = evaluate(payload)
+    if result.decision is ValidationDecision.PUBLICAR:
+        if _persist(
+            db, raw, parsed, summary, status="active", log_status=STATUS_PROCESSADO_IA
+        ):
+            summary.processed_ia += 1
+        return
+
+    _log(
+        db,
+        raw,
+        STATUS_EXTRACAO_INCOMPLETA,
+        extracted_data=json.dumps(payload, default=str, ensure_ascii=False),
+        error_message=_short(f"evento descartado pela validação: {', '.join(result.reason_texts)}"),
+    )
+    summary.discarded += 1
+
+
+def _persist(
+    db: Session,
+    raw: RawEmail,
+    parsed: ParsedEvent,
+    summary: ExtractionSummary,
+    *,
+    status: str,
+    log_status: str,
+) -> bool:
+    """Publica o evento ou, se for lembrete (US 4.5), apenas regista o log.
+
+    Devolve ``True`` quando um evento foi criado, para que o chamador some o
+    contador correto (``processed``/``processed_ia``). A checagem fica aqui,
+    no único ponto de persistência, e por isso cobre tanto o parser (US 4.1)
+    quanto o Gemini (US 4.2) sem duplicar regra.
+    """
+    duplicata = event_repository.find_active_duplicate_by_title_and_date(
+        db, parsed.title, parsed.date
+    )
+    if duplicata is not None:
+        payload = asdict(parsed)
+        payload["duplicata_de"] = duplicata.id
+        payload["titulo_duplicata"] = duplicata.title
+        _log(
+            db,
+            raw,
+            STATUS_IGNORADO_DUPLICATA,
+            extracted_data=json.dumps(payload, default=str, ensure_ascii=False),
+            error_message=(
+                f"{LABEL_IGNORADO_DUPLICATA}: evento ativo {duplicata.id} "
+                f"em {duplicata.date.isoformat()} com o título {duplicata.title!r}"
+            ),
+        )
+        summary.reminders_ignored += 1
+        return False
+
+    title = parsed.title[:200].rstrip()
+    location = parsed.location[:200].rstrip()
+    link = parsed.registration_link if len(parsed.registration_link) <= 500 else ""
+    event = Event(
+        title=title,
+        description=parsed.description or title,
+        date=parsed.date,
+        time=parsed.time,
+        location=location,
+        event_type=parsed.event_type,
+        registration_link=link,
+        status=status,
+        origin="email",
+    )
+    try:
+        event = event_repository.create(db, event)
+    except Exception as exc:
+        # BE-136: rollback garante que a sessão siga utilizável para os próximos e-mails.
+        db.rollback()
+        _log(db, raw, STATUS_ERRO, error_message=_short(exc))
+        summary.errors += 1
+        return False
+
+    _log(
+        db,
+        raw,
+        log_status,
+        extracted_data=json.dumps(asdict(parsed), default=str, ensure_ascii=False),
+        event_id=event.id,
+    )
+    return True
+
+
+def _log(
+    db: Session,
+    raw: RawEmail,
+    status: str,
+    *,
+    extracted_data: str | None = None,
+    error_message: str | None = None,
+    event_id: int | None = None,
+) -> None:
+    # LGPD / IESI-60 (DoD D8): único ponto de gravação do log, então é aqui que
+    # se minimiza — remetente vira só o domínio e textos livres perdem e-mail,
+    # CPF e telefone antes de ir para o banco. Veja ``minimizacao.py``.
+    extraction_log_repository.create(
+        db,
+        ExtractionLog(
+            gmail_message_id=raw.message_id,
+            source_email=dominio_do_remetente(raw.sender),
+            status=status,
+            extracted_data=mascarar_dados_pessoais(extracted_data),
+            error_message=_short(error_message) if error_message is not None else None,
+            event_id=event_id,
+        ),
+    )
+
+
+def _short(exc: Exception | str) -> str:
+    """Mensagem de erro para o log: sem dados pessoais e cabendo em 500 caracteres."""
+    return mascarar_dados_pessoais(str(exc))[:500]

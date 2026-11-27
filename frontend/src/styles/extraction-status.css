@@ -1,0 +1,122 @@
+.extraction-page {
+  padding: var(--space-8);
+}
+
+.extraction-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: var(--space-6);
+}
+
+.extraction-kicker {
+  font-size: 0.95rem;
+  letter-spacing: 0.2em;
+  color: var(--success-text);
+  margin-bottom: var(--space-2);
+  text-transform: uppercase;
+}
+
+.extraction-page h1 {
+  font-size: 3rem;
+  margin: 0 0 24px 0;
+}
+
+.extraction-banner {
+  padding: var(--space-4) var(--space-5);
+  border-radius: 8px;
+  margin-bottom: var(--space-6);
+  font-weight: 600;
+}
+
+.extraction-banner-error {
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  border: 1px solid var(--danger-border);
+}
+
+.extraction-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border: 2px solid var(--ink);
+  margin-bottom: 32px;
+}
+
+.metric-card {
+  padding: var(--space-8);
+  border-right: 1px solid var(--line);
+}
+
+.metric-card:last-child {
+  border-right: none;
+}
+
+.metric-label {
+  font-size: 0.95rem;
+  letter-spacing: 0.2em;
+  color: var(--muted);
+  margin-bottom: var(--space-6);
+}
+
+.metric-value {
+  font-size: 4rem;
+  line-height: 1;
+  display: block;
+}
+
+.recent-section,
+.alerts-section {
+  margin-top: 32px;
+}
+
+.recent-section h2,
+.alerts-section h2 {
+  font-size: 1rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+
+.recent-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.recent-item {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 1.1rem;
+}
+
+@media (max-width: 900px) {
+  .extraction-metrics {
+    grid-template-columns: 1fr;
+  }
+
+  .metric-card {
+    border-right: none;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .metric-card:last-child {
+    border-bottom: none;
+  }
+
+  .extraction-page h1 {
+    font-size: 2.2rem;
+  }
+
+  .metric-value {
+    font-size: 3rem;
+  }
+}
+.extraction-kicker-error {
+  color: var(--danger-text);
+}
+
+.metric-value-date {
+  font-size: clamp(1.5rem, 2.5vw, 2.5rem);
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}

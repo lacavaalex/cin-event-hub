@@ -1,0 +1,1 @@
+# Este arquivo existe apenas para marcar `app.api.extracao` como pacote Python.

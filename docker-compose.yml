@@ -1,0 +1,61 @@
+# docker-compose.yml — orquestra os 3 containers locais da aplicação:
+# banco de dados (Postgres), backend (FastAPI) e frontend (React/Nginx).
+#
+# Execução a partir da raiz do repositório:
+#   docker compose --env-file backend/.env up -d --build
+#
+# IMPORTANTE (produção): no Render/Vercel/Neon cada serviço sobe a partir
+# do seu próprio build/Dockerfile com variáveis configuradas no painel.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev}
+      POSTGRES_DB: ${POSTGRES_DB:-cin_event_hub}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      # Aplica o schema oficial (CHECKs, FKs, defaults UTC-3 e índices) na 1ª inicialização.
+      - ./database/001_schema.sql:/docker-entrypoint-initdb.d/001_schema.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-cin_event_hub}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file:
+      - path: ./backend/.env
+        required: false
+    environment:
+      # Sobrescreve DATABASE_URL para usar o hostname interno "db" da rede do Compose.
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-dev}@db:5432/${POSTGRES_DB:-cin_event_hub}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:5173}
+    ports:
+      - "8000:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:80"
+
+volumes:
+  db_data:
